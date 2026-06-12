@@ -141,7 +141,7 @@
   .row-result { text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 0.92rem; color: var(--amber); }
 
   /* Chart panel */
-  .chart-panel { margin: 0.75rem 0 0.25rem; padding: 0.9rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  .chart-panel { margin: 0.5rem 0 0.25rem; padding: 0.9rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
   .chart-panel.hidden { display: none; }
 
   .chart-stats { display: flex; gap: 0.6rem; margin-bottom: 0.9rem; }
@@ -183,6 +183,20 @@
 
   input:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
 
+  .col-left > *:first-child, .col-right > *:first-child { margin-top: 0.75rem; }
+
+  /* Two-column layout for landscape tablets / wide screens */
+  @media (orientation: landscape) and (min-width: 700px) {
+    .page { max-width: 1080px; }
+    .content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: start;
+      gap: 0 2.5rem;
+    }
+    .col-left { border-right: 1px solid var(--line); padding-right: 2.5rem; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .row-bar, .season-bar span, .chart-bar { transition: none; }
   }
@@ -217,60 +231,64 @@
   </header>
 
   <div class="content">
-    <div class="section-row">
+    <div class="col-left">
       <p class="section-title" id="ledgerSectionTitle">Monthly averages</p>
-      <button class="chart-toggle" id="chartToggle" type="button" aria-pressed="false">Show chart</button>
+      <p class="section-hint" id="ledgerSectionHint">Enter the average kWh used per day for each month. We'll multiply by the days in that month to get the annual total.</p>
+      <label class="leap-toggle"><input type="checkbox" id="leapYear"> Leap year (February has 29 days)</label>
+      <div class="ledger-header">
+        <span id="ledgerHeaderLabel">Month</span><span>kWh / day</span><span id="ledgerHeaderTotal">kWh / month</span>
+      </div>
+      <div id="ledger"></div>
     </div>
-    <p class="section-hint" id="ledgerSectionHint">Enter the average kWh used per day for each month. We'll multiply by the days in that month to get the annual total.</p>
-    <label class="leap-toggle"><input type="checkbox" id="leapYear"> Leap year (February has 29 days)</label>
-    <div class="ledger-header">
-      <span id="ledgerHeaderLabel">Month</span><span>kWh / day</span><span id="ledgerHeaderTotal">kWh / month</span>
-    </div>
-    <div id="ledger"></div>
 
-    <div class="chart-panel hidden" id="chartPanel">
-      <p class="section-title" id="chartTitle" style="margin-top: 0;">Usage by month</p>
-      <div class="chart-stats">
-        <div class="chart-stat peak">
-          <div class="stat-label" id="peakStatLabel">Peak month</div>
-          <div class="stat-value" id="peakValue">—</div>
-          <div class="stat-sub" id="peakSub">–</div>
+    <div class="col-right">
+      <div class="section-row">
+        <p class="section-title" id="chartTitle">Usage by month</p>
+        <button class="chart-toggle" id="chartToggle" type="button" aria-pressed="false">Show chart</button>
+      </div>
+      <div class="chart-panel hidden" id="chartPanel">
+        <div class="chart-stats">
+          <div class="chart-stat peak">
+            <div class="stat-label" id="peakStatLabel">Peak month</div>
+            <div class="stat-value" id="peakValue">—</div>
+            <div class="stat-sub" id="peakSub">–</div>
+          </div>
+          <div class="chart-stat low">
+            <div class="stat-label" id="lowStatLabel">Lowest month</div>
+            <div class="stat-value" id="lowValue">—</div>
+            <div class="stat-sub" id="lowSub">–</div>
+          </div>
         </div>
-        <div class="chart-stat low">
-          <div class="stat-label" id="lowStatLabel">Lowest month</div>
-          <div class="stat-value" id="lowValue">—</div>
-          <div class="stat-sub" id="lowSub">–</div>
+        <div class="chart-bars" id="chartBars"></div>
+        <div class="chart-labels" id="chartLabels"></div>
+      </div>
+
+      <p class="section-title" id="billTitle">This month's bill</p>
+      <div class="card">
+        <div class="field">
+          <label for="monthKwh" id="usageLabel">This month's usage</label>
+          <div class="field-input"><input type="number" inputmode="decimal" step="0.1" min="0" id="monthKwh" placeholder="0"><span class="affix">kWh</span></div>
+        </div>
+        <div class="field">
+          <label for="monthCost" id="costLabel">This month's cost</label>
+          <div class="field-input"><span class="affix">$</span><input type="number" inputmode="decimal" step="0.01" min="0" id="monthCost" placeholder="0.00"></div>
+        </div>
+        <div class="field">
+          <label>Cost per kWh</label>
+          <span class="value cost" id="costPerKwh">—</span>
         </div>
       </div>
-      <div class="chart-bars" id="chartBars"></div>
-      <div class="chart-labels" id="chartLabels"></div>
-    </div>
 
-    <p class="section-title" id="billTitle">This month's bill</p>
-    <div class="card">
-      <div class="field">
-        <label for="monthKwh" id="usageLabel">This month's usage</label>
-        <div class="field-input"><input type="number" inputmode="decimal" step="0.1" min="0" id="monthKwh" placeholder="0"><span class="affix">kWh</span></div>
-      </div>
-      <div class="field">
-        <label for="monthCost" id="costLabel">This month's cost</label>
-        <div class="field-input"><span class="affix">$</span><input type="number" inputmode="decimal" step="0.01" min="0" id="monthCost" placeholder="0.00"></div>
-      </div>
-      <div class="field">
-        <label>Cost per kWh</label>
-        <span class="value cost" id="costPerKwh">—</span>
-      </div>
-    </div>
-
-    <p class="section-title">Annual estimate</p>
-    <div class="card">
-      <div class="field">
-        <label>Estimated annual cost</label>
-        <span class="value cost" id="annualCost">—</span>
-      </div>
-      <div class="field">
-        <label>Estimated monthly cost</label>
-        <span class="value cost" id="monthlyCost">—</span>
+      <p class="section-title">Annual estimate</p>
+      <div class="card">
+        <div class="field">
+          <label>Estimated annual cost</label>
+          <span class="value cost" id="annualCost">—</span>
+        </div>
+        <div class="field">
+          <label>Estimated monthly cost</label>
+          <span class="value cost" id="monthlyCost">—</span>
+        </div>
       </div>
     </div>
   </div>
