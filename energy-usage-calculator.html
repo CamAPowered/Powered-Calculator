@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Energy Usage Worksheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #161b19;
+    --surface: #1e2522;
+    --surface-2: #262f2b;
+    --ink: #ECEAE2;
+    --ink-soft: #95A19B;
+    --line: #313B36;
+    --amber: #F2A93E;
+    --amber-dim: rgba(242, 169, 62, 0.15);
+    --green: #6FD3A3;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 520px; margin: 0 auto; padding-bottom: 2.5rem; }
+
+  /* Header / live meter */
+  header.meter {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    padding: 1rem 1.25rem 0.85rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .meter-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+  .meter-top h1 { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
+  .meter-sub { margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--ink-soft); }
+
+  .reset-btn {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.35rem 0.6rem;
+    cursor: pointer;
+  }
+  .reset-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+  /* Utility selector */
+  .utility-row { display: flex; align-items: center; justify-content: space-between; margin: 0.85rem 0; }
+  .utility-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-soft); }
+  .segmented { display: flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 2px; gap: 2px; }
+  .seg-btn {
+    font-family: inherit; font-size: 0.78rem; font-weight: 600; line-height: 1;
+    padding: 0.4rem 0.85rem; border: none; background: none; color: var(--ink-soft);
+    border-radius: 7px; cursor: pointer;
+  }
+  .seg-btn.active { background: var(--amber); color: #1c1505; }
+
+  .meter-readout { display: flex; align-items: baseline; gap: 0.45rem; margin-bottom: 0.6rem; }
+  .meter-value { font-family: 'IBM Plex Mono', monospace; font-size: 2.1rem; font-weight: 600; color: var(--amber); line-height: 1; }
+  .meter-unit { font-size: 0.7rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .season-bar { display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: var(--line); transition: opacity 0.2s ease; }
+  .season-bar span { height: 100%; transition: width 0.25s ease; }
+  .season-bar.is-empty { opacity: 0.45; }
+
+  .season-labels {
+    display: flex; justify-content: space-between; margin-top: 0.3rem;
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: var(--ink-soft);
+  }
+
+  /* Sections */
+  .content { padding: 0 1.25rem; }
+  .section-title { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); margin: 1.5rem 0 0.25rem; }
+  .section-hint { font-size: 0.78rem; color: var(--ink-soft); margin: 0 0 0.6rem; line-height: 1.45; }
+
+  .section-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin: 1.5rem 0 0.25rem; }
+  .section-row .section-title { margin: 0; }
+  .chart-toggle {
+    flex-shrink: 0; background: none; border: 1px solid var(--line); border-radius: 8px;
+    color: var(--ink-soft); font-family: inherit; font-size: 0.72rem; font-weight: 500;
+    padding: 0.3rem 0.6rem; cursor: pointer;
+  }
+  .chart-toggle[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); background: var(--amber-dim); }
+
+  /* Ledger header */
+  .ledger-header {
+    display: grid; grid-template-columns: 70px 1fr 64px; gap: 0.6rem;
+    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-soft); padding: 0.3rem 0; border-bottom: 1px solid var(--line);
+  }
+  .ledger-header span:nth-child(2), .ledger-header span:nth-child(3) { text-align: right; }
+
+  .leap-toggle {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.78rem; color: var(--ink-soft); padding: 0.5rem 0 0.6rem;
+  }
+  .leap-toggle input { width: 16px; height: 16px; accent-color: var(--amber); }
+
+  /* Ledger rows */
+  .row { position: relative; border-bottom: 1px solid var(--line); overflow: hidden; }
+  .row-bar { position: absolute; inset: 0; width: 0%; background: var(--amber-dim); z-index: 0; transition: width 0.25s ease; }
+  .row-content {
+    position: relative; z-index: 1; display: grid;
+    grid-template-columns: 70px 1fr 64px; gap: 0.6rem; align-items: center;
+    padding: 0.55rem 0;
+  }
+  .month-name { display: block; font-weight: 600; font-size: 0.92rem; }
+  .month-name.pair { font-size: 0.78rem; letter-spacing: -0.02em; }
+  .month-days { display: block; font-size: 0.62rem; color: var(--ink-soft); font-family: 'IBM Plex Mono', monospace; }
+  .row-input {
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.4rem 0.6rem;
+  }
+  .row-input input {
+    width: 100%; border: none; background: none; outline: none;
+    font-family: 'IBM Plex Mono', monospace; font-size: 1rem; color: var(--ink); text-align: right;
+  }
+  .row-input input::-webkit-outer-spin-button, .row-input input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .row-input input[type=number] { -moz-appearance: textfield; }
+  .row-input:focus-within { border-color: var(--amber); }
+
+  .row-result { text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 0.92rem; color: var(--amber); }
+
+  /* Chart panel */
+  .chart-panel { margin: 0.75rem 0 0.25rem; padding: 0.9rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  .chart-panel.hidden { display: none; }
+
+  .chart-stats { display: flex; gap: 0.6rem; margin-bottom: 0.9rem; }
+  .chart-stat { flex: 1; background: var(--surface-2); border-radius: 8px; padding: 0.5rem 0.65rem; }
+  .chart-stat .stat-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-soft); }
+  .chart-stat .stat-value { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 0.95rem; margin-top: 2px; }
+  .chart-stat .stat-sub { font-size: 0.65rem; color: var(--ink-soft); margin-top: 1px; }
+  .chart-stat.peak .stat-value { color: var(--amber); }
+  .chart-stat.low .stat-value { color: var(--green); }
+
+  .chart-bars { display: flex; align-items: flex-end; height: 120px; gap: 4px; }
+  .chart-col { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+  .chart-bar { width: 100%; min-height: 3px; border-radius: 3px 3px 0 0; background: var(--surface-2); transition: height 0.25s ease, background 0.25s ease; }
+  .chart-bar.peak { background: var(--amber); }
+  .chart-bar.low { background: var(--green); }
+
+  .chart-labels { display: flex; gap: 4px; margin-top: 0.35rem; }
+  .chart-labels span { flex: 1; text-align: center; font-size: 0.55rem; color: var(--ink-soft); font-family: 'IBM Plex Mono', monospace; white-space: nowrap; overflow: hidden; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.25rem 1rem; margin-top: 0.5rem; }
+  .field { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 0; border-bottom: 1px solid var(--line); gap: 0.75rem; }
+  .field:last-child { border-bottom: none; }
+  .field label { font-size: 0.85rem; font-weight: 500; }
+  .field-input { display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; }
+  .field-input .affix { font-size: 0.8rem; color: var(--ink-soft); }
+  .field-input input {
+    width: 96px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 1rem;
+    border: 1px solid var(--line); border-radius: 8px; padding: 0.4rem 0.55rem; background: var(--bg); color: var(--ink); outline: none;
+  }
+  .field-input input::-webkit-outer-spin-button, .field-input input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .field-input input[type=number] { -moz-appearance: textfield; }
+  .field-input input:focus { border-color: var(--green); }
+
+  .field .value { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 1rem; }
+  .field .value.cost { color: var(--green); }
+
+  footer { padding: 1.25rem 1.25rem 0; font-size: 0.72rem; color: var(--ink-soft); line-height: 1.55; }
+
+  input:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .row-bar, .season-bar span, .chart-bar { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="meter">
+    <div class="meter-top">
+      <div>
+        <h1>Energy usage worksheet</h1>
+        <p class="meter-sub">Estimate annual usage and cost from monthly averages</p>
+      </div>
+      <button class="reset-btn" id="resetBtn" type="button">Reset</button>
+    </div>
+
+    <div class="utility-row">
+      <span class="utility-label">Utility</span>
+      <div class="segmented" role="group" aria-label="Utility provider">
+        <button type="button" class="seg-btn active" data-utility="SCE" aria-pressed="true">SCE</button>
+        <button type="button" class="seg-btn" data-utility="LADWP" aria-pressed="false">LADWP</button>
+      </div>
+    </div>
+
+    <div class="meter-readout">
+      <span class="meter-value" id="annualTotal">0</span>
+      <span class="meter-unit">kWh / year</span>
+    </div>
+    <div class="season-bar is-empty" id="seasonBar"></div>
+    <div class="season-labels" id="seasonLabels"></div>
+  </header>
+
+  <div class="content">
+    <div class="section-row">
+      <p class="section-title" id="ledgerSectionTitle">Monthly averages</p>
+      <button class="chart-toggle" id="chartToggle" type="button" aria-pressed="false">Show chart</button>
+    </div>
+    <p class="section-hint" id="ledgerSectionHint">Enter the average kWh used per day for each month. We'll multiply by the days in that month to get the annual total.</p>
+    <label class="leap-toggle"><input type="checkbox" id="leapYear"> Leap year (February has 29 days)</label>
+    <div class="ledger-header">
+      <span id="ledgerHeaderLabel">Month</span><span>kWh / day</span><span id="ledgerHeaderTotal">kWh / month</span>
+    </div>
+    <div id="ledger"></div>
+
+    <div class="chart-panel hidden" id="chartPanel">
+      <p class="section-title" id="chartTitle" style="margin-top: 0;">Usage by month</p>
+      <div class="chart-stats">
+        <div class="chart-stat peak">
+          <div class="stat-label" id="peakStatLabel">Peak month</div>
+          <div class="stat-value" id="peakValue">—</div>
+          <div class="stat-sub" id="peakSub">–</div>
+        </div>
+        <div class="chart-stat low">
+          <div class="stat-label" id="lowStatLabel">Lowest month</div>
+          <div class="stat-value" id="lowValue">—</div>
+          <div class="stat-sub" id="lowSub">–</div>
+        </div>
+      </div>
+      <div class="chart-bars" id="chartBars"></div>
+      <div class="chart-labels" id="chartLabels"></div>
+    </div>
+
+    <p class="section-title" id="billTitle">This month's bill</p>
+    <div class="card">
+      <div class="field">
+        <label for="monthKwh" id="usageLabel">This month's usage</label>
+        <div class="field-input"><input type="number" inputmode="decimal" step="0.1" min="0" id="monthKwh" placeholder="0"><span class="affix">kWh</span></div>
+      </div>
+      <div class="field">
+        <label for="monthCost" id="costLabel">This month's cost</label>
+        <div class="field-input"><span class="affix">$</span><input type="number" inputmode="decimal" step="0.01" min="0" id="monthCost" placeholder="0.00"></div>
+      </div>
+      <div class="field">
+        <label>Cost per kWh</label>
+        <span class="value cost" id="costPerKwh">—</span>
+      </div>
+    </div>
+
+    <p class="section-title">Annual estimate</p>
+    <div class="card">
+      <div class="field">
+        <label>Estimated annual cost</label>
+        <span class="value cost" id="annualCost">—</span>
+      </div>
+      <div class="field">
+        <label>Estimated monthly cost</label>
+        <span class="value cost" id="monthlyCost">—</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Annual totals use standard month lengths (February = 28 days unless leap year is checked). For LADWP, each entry covers a two-month billing period and is multiplied by the combined days of both months. Cost estimates apply this bill's cost per kWh across the whole year, and only appear once both usage and cost are entered. Switching utilities converts entered values to keep the annual total consistent.
+  </footer>
+</div>
+
+<script>
+  const MONTH_DEFS = [
+    { name: 'January', abbr: 'Jan', days: 31 },
+    { name: 'February', abbr: 'Feb', days: 28 },
+    { name: 'March', abbr: 'Mar', days: 31 },
+    { name: 'April', abbr: 'Apr', days: 30 },
+    { name: 'May', abbr: 'May', days: 31 },
+    { name: 'June', abbr: 'Jun', days: 30 },
+    { name: 'July', abbr: 'Jul', days: 31 },
+    { name: 'August', abbr: 'Aug', days: 31 },
+    { name: 'September', abbr: 'Sep', days: 30 },
+    { name: 'October', abbr: 'Oct', days: 31 },
+    { name: 'November', abbr: 'Nov', days: 30 },
+    { name: 'December', abbr: 'Dec', days: 31 },
+  ];
+
+  const LADWP_PAIRS = [[0,1],[2,3],[4,5],[6,7],[8,9],[10,11]];
+
+  const UTILITIES = {
+    SCE: {
+      getPeriods: () => MONTH_DEFS.map((m, i) => ({ label: m.abbr, months: [i] })),
+      ledgerLabel: 'Month',
+      totalLabel: 'kWh / month',
+      sectionTitle: 'Monthly averages',
+      sectionHint: "Enter the average kWh used per day for each month. We'll multiply by the days in that month to get the annual total.",
+      chartTitle: 'Usage by month',
+      billTitle: "This month's bill",
+      usageLabel: "This month's usage",
+      costLabel: "This month's cost",
+      peakNoun: 'month',
+    },
+    LADWP: {
+      getPeriods: () => LADWP_PAIRS.map(pair => ({
+        label: MONTH_DEFS[pair[0]].abbr + '\u2013' + MONTH_DEFS[pair[1]].abbr,
+        months: pair,
+      })),
+      ledgerLabel: 'Period',
+      totalLabel: 'kWh / period',
+      sectionTitle: 'Usage by billing period',
+      sectionHint: "LADWP bills every two months. Enter the average kWh used per day across each billing period \u2014 we'll multiply by the days covered to get the annual total.",
+      chartTitle: 'Usage by billing period',
+      billTitle: "This billing period's bill (2 months)",
+      usageLabel: "This period's usage",
+      costLabel: "This period's cost",
+      peakNoun: 'period',
+    },
+  };
+
+  let currentUtility = 'SCE';
+  let currentPeriods = [];
+  let rows = [];
+  let chartCols = [];
+  let segments = [];
+
+  // Element references
+  const ledger = document.getElementById('ledger');
+  const seasonBar = document.getElementById('seasonBar');
+  const seasonLabels = document.getElementById('seasonLabels');
+  const annualTotalEl = document.getElementById('annualTotal');
+  const leapYear = document.getElementById('leapYear');
+  const monthKwhInput = document.getElementById('monthKwh');
+  const monthCostInput = document.getElementById('monthCost');
+  const costPerKwhEl = document.getElementById('costPerKwh');
+  const annualCostEl = document.getElementById('annualCost');
+  const monthlyCostEl = document.getElementById('monthlyCost');
+  const resetBtn = document.getElementById('resetBtn');
+  const chartToggle = document.getElementById('chartToggle');
+  const chartPanel = document.getElementById('chartPanel');
+  const chartBars = document.getElementById('chartBars');
+  const chartLabels = document.getElementById('chartLabels');
+  const chartTitleEl = document.getElementById('chartTitle');
+  const ledgerHeaderLabel = document.getElementById('ledgerHeaderLabel');
+  const ledgerHeaderTotal = document.getElementById('ledgerHeaderTotal');
+  const sectionTitleEl = document.getElementById('ledgerSectionTitle');
+  const sectionHintEl = document.getElementById('ledgerSectionHint');
+  const billTitleEl = document.getElementById('billTitle');
+  const usageLabelEl = document.getElementById('usageLabel');
+  const costLabelEl = document.getElementById('costLabel');
+  const peakStatLabel = document.getElementById('peakStatLabel');
+  const lowStatLabel = document.getElementById('lowStatLabel');
+  const peakValueEl = document.getElementById('peakValue');
+  const peakSubEl = document.getElementById('peakSub');
+  const lowValueEl = document.getElementById('lowValue');
+  const lowSubEl = document.getElementById('lowSub');
+
+  function getDays(monthIndex) {
+    return (monthIndex === 1 && leapYear.checked) ? 29 : MONTH_DEFS[monthIndex].days;
+  }
+
+  function computePeriods(key) {
+    return UTILITIES[key].getPeriods().map(p => ({
+      label: p.label,
+      months: p.months,
+      days: p.months.reduce((s, m) => s + getDays(m), 0),
+    }));
+  }
+
+  function expandToMonths(periods, values) {
+    const monthVals = new Array(12).fill(0);
+    periods.forEach((p, i) => { p.months.forEach(m => { monthVals[m] = values[i]; }); });
+    return monthVals;
+  }
+
+  function aggregateFromMonths(monthVals, periods) {
+    return periods.map(p => {
+      const weighted = p.months.reduce((s, m) => s + monthVals[m] * getDays(m), 0);
+      return p.days > 0 ? weighted / p.days : 0;
+    });
+  }
+
+  function roundDisplay(v) {
+    const r = Math.round(v * 100) / 100;
+    return r === 0 ? '' : String(r);
+  }
+
+  function fmt(n, decimals = 0) {
+    return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  }
+
+  function buildLedger(values) {
+    const def = UTILITIES[currentUtility];
+    ledger.innerHTML = '';
+    chartBars.innerHTML = '';
+    chartLabels.innerHTML = '';
+    seasonBar.innerHTML = '';
+    seasonLabels.innerHTML = '';
+    rows = [];
+    chartCols = [];
+    segments = [];
+
+    ledgerHeaderLabel.textContent = def.ledgerLabel;
+    ledgerHeaderTotal.textContent = def.totalLabel;
+    sectionTitleEl.textContent = def.sectionTitle;
+    sectionHintEl.textContent = def.sectionHint;
+    chartTitleEl.textContent = def.chartTitle;
+    billTitleEl.textContent = def.billTitle;
+    usageLabelEl.textContent = def.usageLabel;
+    costLabelEl.textContent = def.costLabel;
+    peakStatLabel.textContent = 'Peak ' + def.peakNoun;
+    lowStatLabel.textContent = 'Lowest ' + def.peakNoun;
+
+    const n = currentPeriods.length;
+
+    currentPeriods.forEach((p, i) => {
+      const isPair = p.label.length > 4;
+
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = `
+        <div class="row-bar"></div>
+        <div class="row-content">
+          <div class="row-label">
+            <span class="month-name${isPair ? ' pair' : ''}">${p.label}</span>
+            <span class="month-days">${p.days} days</span>
+          </div>
+          <div class="row-input">
+            <input type="number" inputmode="decimal" step="0.1" min="0" placeholder="0.0" aria-label="${p.label} average daily usage in kilowatt-hours">
+          </div>
+          <div class="row-result"><span>0</span></div>
+        </div>`;
+      ledger.appendChild(row);
+
+      const r = {
+        input: row.querySelector('input'),
+        bar: row.querySelector('.row-bar'),
+        result: row.querySelector('.row-result span'),
+        daysLabel: row.querySelector('.month-days'),
+      };
+      if (values && values[i]) r.input.value = roundDisplay(values[i]);
+      r.input.addEventListener('input', recalc);
+      rows.push(r);
+
+      const col = document.createElement('div');
+      col.className = 'chart-col';
+      const bar = document.createElement('div');
+      bar.className = 'chart-bar';
+      col.appendChild(bar);
+      chartBars.appendChild(col);
+      chartCols.push(bar);
+
+      const label = document.createElement('span');
+      label.textContent = p.label;
+      chartLabels.appendChild(label);
+
+      const seg = document.createElement('span');
+      const hue = 195 - 150 * Math.sin((i / Math.max(n - 1, 1)) * Math.PI);
+      seg.style.background = `hsl(${hue}, 65%, 58%)`;
+      seasonBar.appendChild(seg);
+      segments.push(seg);
+    });
+
+    const idxSet = new Set([0, Math.round((n - 1) / 3), Math.round((2 * (n - 1)) / 3), n - 1]);
+    [...idxSet].sort((a, b) => a - b).forEach(idx => {
+      const span = document.createElement('span');
+      span.textContent = currentPeriods[idx].label;
+      seasonLabels.appendChild(span);
+    });
+
+    recalc();
+  }
+
+  function recalc() {
+    const subtotals = currentPeriods.map((p, i) => {
+      rows[i].daysLabel.textContent = p.days + ' days';
+      const perDay = parseFloat(rows[i].input.value) || 0;
+      return perDay * p.days;
+    });
+
+    const annualTotal = subtotals.reduce((a, b) => a + b, 0);
+    annualTotalEl.textContent = fmt(annualTotal, 0);
+
+    const maxSub = Math.max(...subtotals, 0);
+    rows.forEach((r, i) => {
+      r.result.textContent = fmt(subtotals[i], 0);
+      r.bar.style.width = maxSub > 0 ? (subtotals[i] / maxSub * 100) + '%' : '0%';
+    });
+
+    const hasData = annualTotal > 0;
+    seasonBar.classList.toggle('is-empty', !hasData);
+    segments.forEach((seg, i) => {
+      const pct = hasData ? (subtotals[i] / annualTotal * 100) : (100 / currentPeriods.length);
+      seg.style.width = pct + '%';
+    });
+
+    let peakIdx = 0, lowIdx = 0;
+    subtotals.forEach((v, i) => {
+      if (v > subtotals[peakIdx]) peakIdx = i;
+      if (v < subtotals[lowIdx]) lowIdx = i;
+    });
+    const distinct = subtotals[peakIdx] !== subtotals[lowIdx];
+
+    chartCols.forEach((bar, i) => {
+      const h = maxSub > 0 ? (subtotals[i] / maxSub * 100) : 0;
+      bar.style.height = (hasData ? Math.max(h, 3) : 3) + '%';
+      bar.classList.toggle('peak', hasData && distinct && i === peakIdx);
+      bar.classList.toggle('low', hasData && distinct && i === lowIdx);
+    });
+
+    if (hasData) {
+      peakValueEl.textContent = fmt(subtotals[peakIdx], 0) + ' kWh';
+      peakSubEl.textContent = currentPeriods[peakIdx].label;
+      lowValueEl.textContent = fmt(subtotals[lowIdx], 0) + ' kWh';
+      lowSubEl.textContent = currentPeriods[lowIdx].label;
+    } else {
+      peakValueEl.textContent = '\u2014';
+      peakSubEl.textContent = '\u2013';
+      lowValueEl.textContent = '\u2014';
+      lowSubEl.textContent = '\u2013';
+    }
+
+    const monthKwh = parseFloat(monthKwhInput.value) || 0;
+    const ready = monthKwh > 0 && monthCostInput.value !== '';
+
+    if (ready) {
+      const monthCost = parseFloat(monthCostInput.value) || 0;
+      const costPerKwh = monthCost / monthKwh;
+      costPerKwhEl.textContent = '$' + costPerKwh.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 4 });
+
+      const annualCost = costPerKwh * annualTotal;
+      annualCostEl.textContent = '$' + fmt(annualCost, 2);
+      monthlyCostEl.textContent = '$' + fmt(annualCost / 12, 2);
+    } else {
+      costPerKwhEl.textContent = '\u2014';
+      annualCostEl.textContent = '\u2014';
+      monthlyCostEl.textContent = '\u2014';
+    }
+  }
+
+  // Utility switch
+  document.querySelectorAll('.seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const newUtility = btn.dataset.utility;
+      document.querySelectorAll('.seg-btn').forEach(b => {
+        const active = b === btn;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-pressed', String(active));
+      });
+      if (newUtility === currentUtility) return;
+
+      const oldValues = rows.map(r => parseFloat(r.input.value) || 0);
+      const monthVals = expandToMonths(currentPeriods, oldValues);
+
+      currentUtility = newUtility;
+      currentPeriods = computePeriods(currentUtility);
+      const newValues = aggregateFromMonths(monthVals, currentPeriods);
+
+      buildLedger(newValues);
+    });
+  });
+
+  // Leap year toggle
+  leapYear.addEventListener('change', () => {
+    currentPeriods = computePeriods(currentUtility);
+    recalc();
+  });
+
+  // Bill snapshot inputs
+  monthKwhInput.addEventListener('input', recalc);
+  monthCostInput.addEventListener('input', recalc);
+
+  // Reset
+  resetBtn.addEventListener('click', () => {
+    rows.forEach(r => r.input.value = '');
+    leapYear.checked = false;
+    monthKwhInput.value = '';
+    monthCostInput.value = '';
+    currentPeriods = computePeriods(currentUtility);
+    recalc();
+  });
+
+  // Chart toggle
+  chartToggle.addEventListener('click', () => {
+    chartPanel.classList.toggle('hidden');
+    const isHidden = chartPanel.classList.contains('hidden');
+    chartToggle.setAttribute('aria-pressed', String(!isHidden));
+    chartToggle.textContent = isHidden ? 'Show chart' : 'Hide chart';
+  });
+
+  // Init
+  currentPeriods = computePeriods(currentUtility);
+  buildLedger();
+</script>
+</body>
+</html>
