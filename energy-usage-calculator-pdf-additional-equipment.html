@@ -1,0 +1,2648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Energy Usage Worksheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #161b19;
+    --surface: #1e2522;
+    --surface-2: #262f2b;
+    --ink: #ECEAE2;
+    --ink-soft: #95A19B;
+    --line: #313B36;
+    --amber: #F2A93E;
+    --amber-dim: rgba(242, 169, 62, 0.15);
+    --green: #6FD3A3;
+    --blue: #5BBFDE;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 520px; margin: 0 auto; padding-bottom: 2.5rem; }
+
+  /* Header */
+  header.meter {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg);
+    padding: 1rem 1.25rem 0.85rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .meter-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+  .meter-top h1 { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
+  .meter-sub { margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--ink-soft); }
+
+  .reset-btn {
+    flex-shrink: 0; background: none; border: 1px solid var(--line); border-radius: 8px;
+    color: var(--ink-soft); font-family: inherit; font-size: 0.75rem; font-weight: 500;
+    padding: 0.35rem 0.6rem; cursor: pointer;
+  }
+  .reset-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+  /* Reading mode */
+  :root.light-mode {
+    color-scheme: light;
+    --bg: #F5F6F3;
+    --surface: #FFFFFF;
+    --surface-2: #E9ECE8;
+    --ink: #1D2521;
+    --ink-soft: #65716B;
+    --line: #D3D9D5;
+    --amber: #B86A00;
+    --amber-dim: rgba(184, 106, 0, 0.12);
+    --green: #197A4B;
+    --blue: #16718D;
+  }
+
+  .theme-toggle {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.35rem 0.6rem;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .theme-toggle:hover {
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+
+  .export-btn {
+    flex-shrink: 0;
+    background: var(--blue);
+    border: 1px solid var(--blue);
+    border-radius: 8px;
+    color: #0d1e26;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.35rem 0.6rem;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .export-btn:hover { opacity: 0.88; }
+  .export-btn:disabled { opacity: 0.6; cursor: wait; }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  /* Utility selector */
+  .utility-row { display: flex; align-items: center; justify-content: space-between; margin: 0.85rem 0; }
+  .utility-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-soft); }
+  .segmented { display: flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 2px; gap: 2px; }
+  .seg-btn {
+    font-family: inherit; font-size: 0.78rem; font-weight: 600; line-height: 1;
+    padding: 0.4rem 0.85rem; border: none; background: none; color: var(--ink-soft);
+    border-radius: 7px; cursor: pointer;
+  }
+  .seg-btn.active { background: var(--amber); color: #1c1505; }
+
+  .meter-readout { display: flex; align-items: baseline; gap: 0.45rem; margin-bottom: 0.6rem; }
+  .meter-value { font-family: 'IBM Plex Mono', monospace; font-size: 2.1rem; font-weight: 600; color: var(--amber); line-height: 1; }
+  .meter-unit { font-size: 0.7rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .season-bar { display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: var(--line); transition: opacity 0.2s ease; }
+  .season-bar span { height: 100%; transition: width 0.25s ease; }
+  .season-bar.is-empty { opacity: 0.45; }
+  .season-labels {
+    display: flex; justify-content: space-between; margin-top: 0.3rem;
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: var(--ink-soft);
+  }
+
+  /* Sections */
+  .content { padding: 0 1.25rem; }
+  .section-title { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); margin: 1.5rem 0 0.25rem; }
+  .section-hint { font-size: 0.78rem; color: var(--ink-soft); margin: 0 0 0.6rem; line-height: 1.45; }
+  .section-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin: 1.5rem 0 0.25rem; }
+  .section-row .section-title { margin: 0; }
+
+  .chart-toggle {
+    flex-shrink: 0; background: none; border: 1px solid var(--line); border-radius: 8px;
+    color: var(--ink-soft); font-family: inherit; font-size: 0.72rem; font-weight: 500;
+    padding: 0.3rem 0.6rem; cursor: pointer;
+  }
+  .chart-toggle[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); background: var(--amber-dim); }
+
+  /* Ledger */
+  .ledger-header {
+    display: grid; grid-template-columns: 70px 1fr 64px; gap: 0.6rem;
+    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-soft); padding: 0.3rem 0; border-bottom: 1px solid var(--line);
+  }
+  .ledger-header span:nth-child(2), .ledger-header span:nth-child(3) { text-align: right; }
+
+  .leap-toggle {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.78rem; color: var(--ink-soft); padding: 0.5rem 0 0.6rem;
+  }
+  .leap-toggle input { width: 16px; height: 16px; accent-color: var(--amber); }
+
+  .row { position: relative; border-bottom: 1px solid var(--line); overflow: hidden; }
+  .row-bar { position: absolute; inset: 0; width: 0%; background: var(--amber-dim); z-index: 0; transition: width 0.25s ease; }
+  .row-content {
+    position: relative; z-index: 1; display: grid;
+    grid-template-columns: 70px 1fr 64px; gap: 0.6rem; align-items: center; padding: 0.55rem 0;
+  }
+  .month-name { display: block; font-weight: 600; font-size: 0.92rem; }
+  .month-name.pair { font-size: 0.78rem; letter-spacing: -0.02em; }
+  .month-days { display: block; font-size: 0.62rem; color: var(--ink-soft); font-family: 'IBM Plex Mono', monospace; }
+  .row-input { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.4rem 0.6rem; }
+  .row-input input {
+    width: 100%; border: none; background: none; outline: none;
+    font-family: 'IBM Plex Mono', monospace; font-size: 1rem; color: var(--ink); text-align: right;
+  }
+  .row-input input::-webkit-outer-spin-button, .row-input input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .row-input input[type=number] { -moz-appearance: textfield; }
+  .row-input:focus-within { border-color: var(--amber); }
+  .row-result { text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 0.92rem; color: var(--amber); }
+
+  /* Chart */
+  .chart-panel { margin: 0.5rem 0 0.25rem; padding: 0.9rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  .chart-panel.hidden { display: none; }
+  .chart-stats { display: flex; gap: 0.6rem; margin-bottom: 0.9rem; }
+  .chart-stat { flex: 1; background: var(--surface-2); border-radius: 8px; padding: 0.5rem 0.65rem; }
+  .chart-stat .stat-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-soft); }
+  .chart-stat .stat-value { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 0.95rem; margin-top: 2px; }
+  .chart-stat .stat-sub { font-size: 0.65rem; color: var(--ink-soft); margin-top: 1px; }
+  .chart-stat.peak .stat-value { color: var(--amber); }
+  .chart-stat.low .stat-value { color: var(--green); }
+  .chart-bars { display: flex; align-items: flex-end; height: 120px; gap: 4px; }
+  .chart-col { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+  .chart-bar { width: 100%; min-height: 3px; border-radius: 3px 3px 0 0; background: var(--surface-2); transition: height 0.25s ease, background 0.25s ease; }
+  .chart-bar.peak { background: var(--amber); }
+  .chart-bar.low { background: var(--green); }
+  .chart-labels { display: flex; gap: 4px; margin-top: 0.35rem; }
+  .chart-labels span { flex: 1; text-align: center; font-size: 0.55rem; color: var(--ink-soft); font-family: 'IBM Plex Mono', monospace; white-space: nowrap; overflow: hidden; }
+
+  /* Cards + fields */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.25rem 1rem; margin-top: 0.5rem; }
+  .field { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 0; border-bottom: 1px solid var(--line); gap: 0.75rem; }
+  .field:last-child { border-bottom: none; }
+  .field label { font-size: 0.85rem; font-weight: 500; flex-shrink: 0; }
+  .field-input { display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; }
+  .field-input .affix { font-size: 0.8rem; color: var(--ink-soft); }
+  .field-input input, .field-input select {
+    text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 1rem;
+    border: 1px solid var(--line); border-radius: 8px; padding: 0.4rem 0.55rem;
+    background: var(--bg); color: var(--ink); outline: none;
+  }
+  .field-input input { width: 96px; }
+  .field-input select { min-width: 190px; max-width: 240px; }
+  .field-input input::-webkit-outer-spin-button, .field-input input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .field-input input[type=number] { -moz-appearance: textfield; }
+  .field-input input:focus, .field-input select:focus { border-color: var(--green); }
+
+  /* Text inputs (name, address, etc.) */
+  .field-text { flex: 1; text-align: right; font-family: inherit; font-size: 0.9rem;
+    border: 1px solid var(--line); border-radius: 8px; padding: 0.38rem 0.6rem;
+    background: var(--bg); color: var(--ink); outline: none; min-width: 0;
+  }
+  .field-text:focus { border-color: var(--green); }
+
+  .field .value { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 1rem; }
+  .field .value.cost { color: var(--green); }
+
+  /* CARE toggle in card */
+  .care-toggle { display: flex; gap: 0.35rem; }
+  .care-btn {
+    font-family: inherit; font-size: 0.78rem; font-weight: 600;
+    padding: 0.35rem 0.75rem; border: 1px solid var(--line); border-radius: 8px;
+    background: none; color: var(--ink-soft); cursor: pointer;
+  }
+  .care-btn.active-yes { border-color: var(--green); color: var(--green); background: rgba(111,211,163,0.12); }
+  .care-btn.active-no { border-color: var(--line); color: var(--ink-soft); background: var(--surface-2); }
+
+  /* Notes textarea */
+  .notes-wrap { padding: 0.6rem 0; }
+  .notes-wrap label { font-size: 0.85rem; font-weight: 500; display: block; margin-bottom: 0.4rem; }
+  .notes-wrap textarea {
+    width: 100%; border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.5rem 0.65rem; background: var(--bg); color: var(--ink);
+    font-family: inherit; font-size: 0.88rem; line-height: 1.5; resize: vertical; min-height: 64px; outline: none;
+  }
+  .notes-wrap textarea:focus { border-color: var(--green); }
+
+  /* Proposal CTA */
+  .proposal-cta { margin-top: 1.5rem; }
+  .copy-btn {
+    width: 100%; padding: 0.85rem 1rem;
+    background: var(--blue); color: #0d1e26;
+    border: none; border-radius: var(--radius);
+    font-family: inherit; font-size: 1rem; font-weight: 700;
+    cursor: pointer; letter-spacing: -0.01em;
+    display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+    transition: opacity 0.15s ease;
+  }
+  .copy-btn:hover { opacity: 0.88; }
+  .copy-btn.copied { background: var(--green); }
+
+  .proposal-preview {
+    margin-top: 0.65rem; background: var(--surface);
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 0.85rem 1rem; display: none;
+  }
+  .proposal-preview.visible { display: block; }
+  .proposal-preview pre {
+    margin: 0; font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem; line-height: 1.65; color: var(--ink); white-space: pre-wrap; word-break: break-word;
+  }
+
+  footer { padding: 1.25rem 1.25rem 0; font-size: 0.72rem; color: var(--ink-soft); line-height: 1.55; }
+  input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+
+  .col-left > *:first-child, .col-right > *:first-child { margin-top: 0.75rem; }
+
+
+  /* Page 2 — annual rate increase calculator */
+  .page-one.hidden-page { display: none; }
+  .page-two { padding: 1.25rem; }
+  .page-two.hidden-page { display: none; }
+
+  .dummy-btn {
+    position: fixed;
+    left: 8px;
+    bottom: 8px;
+    z-index: 20;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink-soft);
+    border-radius: 5px;
+    padding: 0.22rem 0.38rem;
+    font-family: inherit;
+    font-size: 0.58rem;
+    line-height: 1;
+    opacity: 0.5;
+    cursor: pointer;
+  }
+  .dummy-btn:hover { opacity: 1; border-color: var(--amber); color: var(--amber); }
+
+  .next-wrap {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .next-btn, .back-btn {
+    border: none;
+    border-radius: var(--radius);
+    padding: 0.8rem 1.1rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .next-btn {
+    background: var(--blue);
+    color: #0d1e26;
+  }
+
+  .back-btn {
+    background: var(--surface-2);
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+  }
+
+  .next-btn:hover, .back-btn:hover { opacity: 0.88; }
+
+  .page-two-head {
+    padding: 0.5rem 0 1rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .page-two-head h2 {
+    margin: 0;
+    font-size: 1.35rem;
+    letter-spacing: -0.02em;
+  }
+
+  .page-two-head p {
+    margin: 0.3rem 0 0;
+    color: var(--ink-soft);
+    font-size: 0.8rem;
+    line-height: 1.45;
+  }
+
+  .rate-context {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding: 0.7rem 0.8rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+
+  .rate-context .context-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+
+  .rate-context .context-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .rate-inputs {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.4rem;
+    margin-top: 1rem;
+  }
+
+  .rate-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0.8rem 0.9rem;
+  }
+
+  .rate-card-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    margin-bottom: 0.65rem;
+  }
+
+  .rate-card-title.utility-rate { color: var(--amber); }
+  .rate-card-title.lock-rate { color: var(--green); }
+
+  .rate-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.48rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .rate-field:last-child { border-bottom: none; }
+
+  .rate-field label {
+    font-size: 0.78rem;
+    font-weight: 500;
+  }
+
+  .rate-field-input {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .rate-field-input input {
+    width: 88px;
+    text-align: right;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 0.35rem 0.45rem;
+    background: var(--bg);
+    color: var(--ink);
+    outline: none;
+  }
+
+  .rate-field-input input:focus { border-color: var(--green); }
+  .rate-field-input .affix { color: var(--ink-soft); font-size: 0.78rem; }
+
+
+  .comparison-strip {
+    display: grid;
+    grid-template-columns: 1fr 32px 1fr;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 1rem;
+  }
+
+  .comparison-side {
+    border-radius: var(--radius);
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  .comparison-side.utility { border-left: 3px solid var(--amber); }
+  .comparison-side.lock { border-left: 3px solid var(--green); }
+  .comparison-side.pv {
+    border-left: 3px solid var(--blue);
+    display: none;
+  }
+
+  .comparison-strip-three {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .comparison-strip-three.has-pv {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .comparison-strip-three.has-pv .comparison-pv {
+    display: block;
+  }
+
+  @media (max-width: 650px) {
+    .comparison-strip-three.has-pv {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .comparison-side .comparison-label {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    font-weight: 700;
+  }
+
+  .comparison-side .comparison-rate {
+    margin-top: 0.2rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .comparison-side.utility .comparison-rate { color: var(--amber); }
+  .comparison-side.lock .comparison-rate { color: var(--green); }
+
+  .comparison-arrow {
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+  }
+
+  .savings-card {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--green);
+    background: var(--greenLight, rgba(36,122,77,.10));
+    text-align: center;
+  }
+
+  .savings-label {
+    color: var(--ink-soft);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+  }
+
+  .savings-value {
+    margin-top: 0.2rem;
+    color: var(--green);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(1.7rem, 5vw, 2.5rem);
+    font-weight: 600;
+    line-height: 1.1;
+  }
+
+  .savings-subtitle {
+    margin-top: 0.25rem;
+    color: var(--ink-soft);
+    font-size: 0.68rem;
+  }
+
+  .initial-discount {
+    margin-top: 0.75rem;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid var(--green);
+    border-radius: var(--radius);
+    background: var(--greenLight, rgba(36,122,77,.10));
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .initial-discount.visible { display: flex; }
+
+  .initial-discount-label {
+    color: var(--ink-soft);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+
+  .initial-discount-value {
+    color: var(--green);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+
+  .projection-wrap {
+    margin-top: 1.25rem;
+  }
+
+  .projection-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .projection-title .section-title { margin: 0; }
+
+  .projection-unit {
+    font-size: 0.65rem;
+    color: var(--ink-soft);
+  }
+
+  .projection-table {
+    margin-top: 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  .projection-row {
+    display: grid;
+    grid-template-columns: 54px 1fr 1fr 1fr 82px;
+    align-items: center;
+    min-height: 42px;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+  }
+
+  .projection-row:last-child { border-bottom: none; }
+
+  .projection-row.header {
+    min-height: 34px;
+    background: var(--surface-2);
+    color: var(--ink-soft);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+
+  .projection-row > span {
+    padding: 0.35rem 0.55rem;
+  }
+
+  .projection-row > span:not(:first-child) { text-align: right; }
+
+  .projection-row .year {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .projection-row .utility-value {
+    color: var(--amber);
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+  }
+
+  .projection-row .lock-value {
+    color: var(--green);
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+  }
+
+  .projection-row .difference {
+    color: var(--ink-soft);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.76rem;
+  }
+
+  .projection-pv-column {
+    display: none;
+  }
+
+  .projection-table.has-pv .projection-pv-column {
+    display: block;
+  }
+
+  .projection-row .pv-value {
+    display: none;
+    color: var(--blue);
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+  }
+
+  .projection-table.has-pv .projection-row .pv-value {
+    display: block;
+  }
+
+  .projection-row.future {
+    display: none;
+  }
+
+  .projection-table.show-all .projection-row.future {
+    display: grid;
+  }
+
+  .projection-fade {
+    height: 48px;
+    margin-top: -48px;
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(30,37,34,0), var(--surface));
+  }
+
+  :root.light-mode .projection-fade {
+    background: linear-gradient(to bottom, rgba(255,255,255,0), var(--surface));
+  }
+
+  .projection-table.show-all + .projection-fade { display: none; }
+
+  .show-all-btn {
+    display: block;
+    margin: 0.55rem auto 0;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.38rem 0.7rem;
+    cursor: pointer;
+  }
+
+  .show-all-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+  .rate-footnote {
+    margin: 0.9rem 0 0;
+    font-size: 0.68rem;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+
+  .equipment-section {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .equipment-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .equipment-toggle input {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--green);
+    cursor: pointer;
+  }
+
+  .equipment-options {
+    display: none;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.45rem;
+    margin-top: 0.7rem;
+  }
+
+  .equipment-options.visible { display: grid; }
+
+  .equipment-option {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.55rem;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--surface);
+    font-size: 0.68rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+
+  .equipment-option input {
+    accent-color: var(--green);
+  }
+
+  .pv-fields {
+    display: none;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.55rem;
+    margin-top: 0.7rem;
+    padding: 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+
+  .pv-fields.visible { display: grid; }
+
+  .pv-field label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.62rem;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  .pv-field input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 0.38rem 0.45rem;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    outline: none;
+  }
+
+  .pv-field input:focus { border-color: var(--green); }
+
+  .pv-equivalent {
+    display: none;
+    margin-top: 0.8rem;
+    padding: 0.65rem 0.8rem;
+    border-left: 3px solid var(--blue);
+    border-radius: 0 7px 7px 0;
+    background: var(--blueLight, rgba(22,113,141,.10));
+  }
+
+  .pv-equivalent.visible { display: block; }
+
+  .pv-equivalent-label {
+    font-size: 0.62rem;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+
+  .pv-equivalent-value {
+    margin-top: 0.15rem;
+    color: var(--blue);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  .page-two-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    gap: 0.75rem;
+  }
+
+  @media (orientation: landscape) and (min-width: 700px) {
+    .page { max-width: 1080px; }
+    .content { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 0 2.5rem; }
+    .col-left { border-right: 1px solid var(--line); padding-right: 2.5rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .row-bar, .season-bar span, .chart-bar, .copy-btn { transition: none; }
+  }
+</style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+<div class="page">
+
+  <header class="meter">
+    <div class="meter-top">
+      <div>
+        <h1>Energy usage worksheet</h1>
+        <p class="meter-sub">Estimate annual usage and cost from monthly averages</p>
+      </div>
+      <div class="header-actions">
+        <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">Light mode</button>
+        <button class="export-btn" id="exportBtn" type="button">Export PDF</button>
+        <button class="reset-btn" id="resetBtn" type="button">Reset</button>
+      </div>
+    </div>
+    <div class="utility-row">
+      <span class="utility-label">Utility</span>
+      <div class="segmented" role="group" aria-label="Utility provider">
+        <button type="button" class="seg-btn active" data-utility="SCE" aria-pressed="true">SCE</button>
+        <button type="button" class="seg-btn" data-utility="LADWP" aria-pressed="false">LADWP</button>
+      </div>
+    </div>
+    <div class="meter-readout">
+      <span class="meter-value" id="annualTotal">0</span>
+      <span class="meter-unit">kWh / year</span>
+    </div>
+    <div class="season-bar is-empty" id="seasonBar"></div>
+    <div class="season-labels" id="seasonLabels"></div>
+  </header>
+
+  <div class="page-one" id="pageOne">
+  <div class="content">
+    <div class="col-left">
+      <div class="section-row">
+        <p class="section-title" id="ledgerSectionTitle">Monthly averages</p>
+        <div class="segmented" role="group" aria-label="Energy usage input mode">
+          <button type="button" class="seg-btn active" data-input-mode="daily" aria-pressed="true">Daily</button>
+          <button type="button" class="seg-btn" data-input-mode="monthly" aria-pressed="false">Monthly</button>
+        </div>
+      </div>
+      <p class="section-hint" id="ledgerSectionHint">Enter the average kWh used per day for each month. We'll multiply by the days in that month to get the annual total.</p>
+      <label class="leap-toggle"><input type="checkbox" id="leapYear"> Leap year (February has 29 days)</label>
+      <div class="ledger-header">
+        <span id="ledgerHeaderLabel">Month</span><span id="ledgerInputHeader">kWh / day</span><span id="ledgerHeaderTotal">kWh / month</span>
+      </div>
+      <div id="ledger"></div>
+    </div>
+
+    <div class="col-right">
+
+      <!-- Chart -->
+      <div class="section-row">
+        <p class="section-title" id="chartTitle">Usage by month</p>
+        <button class="chart-toggle" id="chartToggle" type="button" aria-pressed="false">Show chart</button>
+      </div>
+      <div class="chart-panel hidden" id="chartPanel">
+        <div class="chart-stats">
+          <div class="chart-stat peak">
+            <div class="stat-label" id="peakStatLabel">Peak month</div>
+            <div class="stat-value" id="peakValue">—</div>
+            <div class="stat-sub" id="peakSub">–</div>
+          </div>
+          <div class="chart-stat low">
+            <div class="stat-label" id="lowStatLabel">Lowest month</div>
+            <div class="stat-value" id="lowValue">—</div>
+            <div class="stat-sub" id="lowSub">–</div>
+          </div>
+        </div>
+        <div class="chart-bars" id="chartBars"></div>
+        <div class="chart-labels" id="chartLabels"></div>
+      </div>
+
+      <!-- Bill snapshot -->
+      <p class="section-title" id="billTitle">This month's bill</p>
+      <div class="card">
+        <div class="field">
+          <label for="monthKwh" id="usageLabel">This month's usage</label>
+          <div class="field-input"><input type="number" inputmode="decimal" step="0.1" min="0" id="monthKwh" placeholder="0"><span class="affix">kWh</span></div>
+        </div>
+        <div class="field">
+          <label for="monthCost" id="costLabel">This month's cost</label>
+          <div class="field-input"><span class="affix">$</span><input type="number" inputmode="decimal" step="0.01" min="0" id="monthCost" placeholder="0.00"></div>
+        </div>
+        <div class="field">
+          <label>Cost per kWh</label>
+          <span class="value cost" id="costPerKwh">—</span>
+        </div>
+      </div>
+
+      <!-- Annual estimate -->
+      <p class="section-title">Annual estimate</p>
+      <div class="card">
+        <div class="field">
+          <label>Estimated annual cost</label>
+          <span class="value cost" id="annualCost">—</span>
+        </div>
+        <div class="field">
+          <label>Estimated monthly cost</label>
+          <span class="value cost" id="monthlyCost">—</span>
+        </div>
+      </div>
+
+      <!-- Proposal info -->
+      <p class="section-title">Proposal request</p>
+      <p class="section-hint">Fill in customer details, then copy the formatted proposal request to your clipboard.</p>
+      <div class="card">
+        <div class="field">
+          <label for="custName">Full name</label>
+          <input class="field-text" type="text" id="custName" placeholder="e.g. Maria Garcia" autocomplete="name">
+        </div>
+        <div class="field">
+          <label for="custAddress">Address</label>
+          <input class="field-text" type="text" id="custAddress" placeholder="123 Main St, City, CA" autocomplete="street-address">
+        </div>
+        <div class="field">
+          <label for="custPhone">Phone</label>
+          <input class="field-text" type="tel" id="custPhone" placeholder="(555) 000-0000" autocomplete="tel">
+        </div>
+        <div class="field">
+          <label for="custEmail">Email</label>
+          <input class="field-text" type="email" id="custEmail" placeholder="name@email.com" autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="rateSchedule">Rate Schedule</label>
+          <div class="field-input">
+            <select id="rateSchedule" aria-label="Rate Schedule"></select>
+          </div>
+        </div>
+        <div class="field" id="rateScheduleOtherField" style="display:none;">
+          <label for="rateScheduleOther">Other Rate Schedule</label>
+          <input class="field-text" type="text" id="rateScheduleOther" placeholder="Enter rate schedule">
+        </div>
+        <div class="field">
+          <label for="meterNumber">Meter #</label>
+          <input class="field-text" type="text" id="meterNumber" placeholder="e.g. 123456789">
+        </div>
+        <div class="field">
+          <label>CARE program</label>
+          <div class="care-toggle">
+            <button type="button" class="care-btn" id="careYes" aria-pressed="false">Yes</button>
+            <button type="button" class="care-btn" id="careNo" aria-pressed="false">No</button>
+          </div>
+        </div>
+        <div class="notes-wrap">
+          <label for="custNotes">Notes</label>
+          <textarea id="custNotes" placeholder="Shading, roof type, HOA, special requests…"></textarea>
+        </div>
+      </div>
+
+      <div class="proposal-cta">
+        <button class="copy-btn" id="copyBtn" type="button">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2H3.5A1.5 1.5 0 0 0 2 3.5V9.5A1.5 1.5 0 0 0 3.5 11H5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          Copy proposal request
+        </button>
+        <div class="proposal-preview" id="proposalPreview">
+          <pre id="proposalText"></pre>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+      <div class="next-wrap"><button class="next-btn" id="nextBtn" type="button">Next →</button></div>
+      <button class="dummy-btn" id="dummyBtn" type="button" title="Load dummy customer data (6,500 kWh/year)">Dummy</button>
+
+  </div>
+
+  <div class="page-two hidden-page" id="pageTwo">
+    <div class="page-two-head">
+      <h2>Annual Rate Increase Comparison</h2>
+      <p>Compare projected utility increases against your rate lock. Both projections compound annually from their editable starting amounts.</p>
+    </div>
+
+    <div class="rate-context">
+      <span class="context-label">Customer / Utility</span>
+      <span class="context-value" id="rateContextValue">Customer • SCE</span>
+    </div>
+
+    <div class="rate-inputs">
+      <div class="rate-card">
+        <div class="rate-card-title utility-rate" id="utilityRaiseTitle">SCE Annual Increase</div>
+        <div class="rate-field">
+          <label for="utilityStartAmount">Monthly Average $ Amount</label>
+          <div class="rate-field-input">
+            <span class="affix">$</span>
+            <input type="number" id="utilityStartAmount" min="0" step="0.01" inputmode="decimal">
+          </div>
+        </div>
+        <div class="rate-field">
+          <label for="utilityRaiseRate">Annual Raise</label>
+          <div class="rate-field-input">
+            <input type="number" id="utilityRaiseRate" min="0" step="0.01" inputmode="decimal">
+            <span class="affix">%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rate-card">
+        <div class="rate-card-title lock-rate">Rate Lock</div>
+        <div class="rate-field">
+          <label for="rateLockStartAmount">Monthly Average $ Amount</label>
+          <div class="rate-field-input">
+            <span class="affix">$</span>
+            <input type="number" id="rateLockStartAmount" min="0" step="0.01" inputmode="decimal">
+          </div>
+        </div>
+        <div class="rate-field">
+          <label for="rateLockRate">Annual Increase</label>
+          <div class="rate-field-input">
+            <input type="number" id="rateLockRate" min="0" step="0.01" inputmode="decimal">
+            <span class="affix">%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="comparison-strip comparison-strip-three" id="comparisonStrip">
+      <div class="comparison-side utility">
+        <div class="comparison-label" id="comparisonUtilityLabel">SCE</div>
+        <div class="comparison-rate" id="comparisonUtilityRate">12%</div>
+      </div>
+      <div class="comparison-side lock">
+        <div class="comparison-label">Rate Lock</div>
+        <div class="comparison-rate" id="comparisonLockRate">3.50%</div>
+      </div>
+      <div class="comparison-side pv comparison-pv" id="comparisonPvSide">
+        <div class="comparison-label">Monthly kWh $ Equivalent</div>
+        <div class="comparison-rate" id="comparisonPvValue">$0.00</div>
+      </div>
+    </div>
+
+    <div class="initial-discount" id="initialDiscount">
+      <span class="initial-discount-label">Initial Discount</span>
+      <span class="initial-discount-value" id="initialDiscountValue">$0.00</span>
+    </div>
+
+
+    <div class="projection-wrap">
+      <div class="projection-title">
+        <p class="section-title">5-Year Projection</p>
+        <span class="projection-unit">Projected monthly cost</span>
+      </div>
+
+      <div class="projection-table" id="projectionTable">
+        <div class="projection-row header">
+          <span class="projection-pv-column" id="projectionPvHeader">PV Equivalent</span>
+          <span>Year</span>
+          <span id="utilityColumnHeader">SCE</span>
+          <span>Rate Lock</span>
+          <span>Difference</span>
+        </div>
+        <div id="projectionRows"></div>
+      </div>
+      <div class="projection-fade" id="projectionFade"></div>
+      <button class="show-all-btn" id="showAllYearsBtn" type="button" aria-expanded="false">Show all 25 years</button>
+    </div>
+
+    <div class="savings-card">
+      <div class="savings-label">Estimated 25-Year Savings</div>
+      <div class="savings-value" id="estimated25YearSavings">$0.00</div>
+      <div class="savings-subtitle">Based on 12 months of projected costs each year, compared with the rate lock.</div>
+    </div>
+
+    <p class="rate-footnote" id="rateFootnote">Projection assumes the selected annual increase compounds once per year.</p>
+    <div class="equipment-section">
+      <label class="equipment-toggle">
+        <input type="checkbox" id="additionalEquipmentToggle">
+        <span>Additional Equipment</span>
+      </label>
+
+      <div class="equipment-options" id="equipmentOptions">
+        <label class="equipment-option">
+          <input type="checkbox" class="equipment-check" value="Main Panel Upgrade">
+          <span>Main Panel Upgrade</span>
+        </label>
+        <label class="equipment-option">
+          <input type="checkbox" class="equipment-check" value="Photovoltaic" id="photovoltaicToggle">
+          <span>Photovoltaic</span>
+        </label>
+        <label class="equipment-option">
+          <input type="checkbox" class="equipment-check" value="Sub Panel">
+          <span>Sub Panel</span>
+        </label>
+        <label class="equipment-option">
+          <input type="checkbox" class="equipment-check" value="Backup Circuit">
+          <span>Backup Circuit</span>
+        </label>
+      </div>
+
+      <div class="pv-fields" id="pvFields">
+        <div class="pv-field">
+          <label for="pvOffset"> % Offset</label>
+          <input type="number" id="pvOffset" min="0" step="0.1" inputmode="decimal" placeholder="e.g. 110">
+        </div>
+        <div class="pv-field">
+          <label for="pvQuantity">Panel Quantity</label>
+          <input type="number" id="pvQuantity" min="0" step="1" inputmode="numeric" placeholder="e.g. 18">
+        </div>
+        <div class="pv-field">
+          <label for="pvInitialRate">Initial Rate</label>
+          <div class="rate-field-input">
+            <input type="number" id="pvInitialRate" min="0" step="0.001" inputmode="decimal" placeholder="e.g. 0.24">
+            <span class="affix">$/kWh</span>
+          </div>
+        </div>
+        <div class="pv-field">
+          <label for="pvAnnualKwh">Kwh Annual</label>
+          <input type="number" id="pvAnnualKwh" min="0" step="1" inputmode="numeric" placeholder="e.g. 7200">
+        </div>
+      </div>
+    </div>
+
+
+
+    <div class="page-two-nav">
+      <button class="back-btn" id="backBtn" type="button">← Back</button>
+      <button class="next-btn" id="pdfPageHintBtn" type="button">Ready for PDF →</button>
+    </div>
+  </div>
+
+  <footer>
+    Annual totals use standard month lengths (February = 28 days unless leap year is checked). For LADWP, each entry covers a two-month billing period. Cost estimates appear once both usage and cost for this bill are entered. Switching utilities converts entered values to keep the annual total consistent.
+  </footer>
+</div>
+
+<script>
+  const MONTH_DEFS = [
+    { name: 'January',   abbr: 'Jan', days: 31 },
+    { name: 'February',  abbr: 'Feb', days: 28 },
+    { name: 'March',     abbr: 'Mar', days: 31 },
+    { name: 'April',     abbr: 'Apr', days: 30 },
+    { name: 'May',       abbr: 'May', days: 31 },
+    { name: 'June',      abbr: 'Jun', days: 30 },
+    { name: 'July',      abbr: 'Jul', days: 31 },
+    { name: 'August',    abbr: 'Aug', days: 31 },
+    { name: 'September', abbr: 'Sep', days: 30 },
+    { name: 'October',   abbr: 'Oct', days: 31 },
+    { name: 'November',  abbr: 'Nov', days: 30 },
+    { name: 'December',  abbr: 'Dec', days: 31 },
+  ];
+  const LADWP_PAIRS = [[0,1],[2,3],[4,5],[6,7],[8,9],[10,11]];
+
+  const UTILITIES = {
+    SCE: {
+      getPeriods: () => MONTH_DEFS.map((m, i) => ({ label: m.abbr, months: [i] })),
+      ledgerLabel: 'Month', totalLabel: 'kWh / month',
+      sectionTitle: 'Monthly averages',
+      sectionHint: "Enter the average kWh used per day for each month. We'll multiply by the days in that month to get the annual total.",
+      chartTitle: 'Usage by month',
+      billTitle: "This month's bill",
+      usageLabel: "This month's usage", costLabel: "This month's cost",
+      peakNoun: 'month',
+    },
+    LADWP: {
+      getPeriods: () => LADWP_PAIRS.map(pair => ({
+        label: MONTH_DEFS[pair[0]].abbr + '\u2013' + MONTH_DEFS[pair[1]].abbr,
+        months: pair,
+      })),
+      ledgerLabel: 'Period', totalLabel: 'kWh / period',
+      sectionTitle: 'Usage by billing period',
+      sectionHint: "LADWP bills every two months. Enter the average kWh used per day across each billing period \u2014 we'll multiply by the days covered to get the annual total.",
+      chartTitle: 'Usage by billing period',
+      billTitle: "This billing period's bill (2 months)",
+      usageLabel: "This period's usage", costLabel: "This period's cost",
+      peakNoun: 'period',
+    },
+  };
+
+  let currentUtility = 'SCE';
+  let currentPeriods = [];
+  let rows = [], chartCols = [], segments = [];
+  let inputMode = 'daily'; // 'daily' | 'monthly'
+  let careValue = null; // null | 'Yes' | 'No'
+
+  // Computed values we need for the proposal
+  let computedAnnualKwh = 0;
+  let computedMonthlyKwh = 0;
+  let computedMonthlyCost = 0;
+  let computedCentsPerKwh = null;
+
+  // El refs
+  const ledger = document.getElementById('ledger');
+  const seasonBar = document.getElementById('seasonBar');
+  const seasonLabels = document.getElementById('seasonLabels');
+  const annualTotalEl = document.getElementById('annualTotal');
+  const leapYear = document.getElementById('leapYear');
+  const monthKwhInput = document.getElementById('monthKwh');
+  const monthCostInput = document.getElementById('monthCost');
+  const costPerKwhEl = document.getElementById('costPerKwh');
+  const annualCostEl = document.getElementById('annualCost');
+  const monthlyCostEl = document.getElementById('monthlyCost');
+  const resetBtn = document.getElementById('resetBtn');
+  const themeToggle = document.getElementById('themeToggle');
+  const exportBtn = document.getElementById('exportBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const dummyBtn = document.getElementById('dummyBtn');
+  const backBtn = document.getElementById('backBtn');
+  const pdfPageHintBtn = document.getElementById('pdfPageHintBtn');
+  const pageOne = document.getElementById('pageOne');
+  const pageTwo = document.getElementById('pageTwo');
+  const utilityRaiseTitle = document.getElementById('utilityRaiseTitle');
+  const utilityColumnHeader = document.getElementById('utilityColumnHeader');
+  const utilityStartAmount = document.getElementById('utilityStartAmount');
+  const utilityRaiseRate = document.getElementById('utilityRaiseRate');
+  const rateLockStartAmount = document.getElementById('rateLockStartAmount');
+  const rateLockRate = document.getElementById('rateLockRate');
+  const projectionTable = document.getElementById('projectionTable');
+  const projectionRows = document.getElementById('projectionRows');
+  const projectionPvHeader = document.getElementById('projectionPvHeader');
+  const projectionFade = document.getElementById('projectionFade');
+  const showAllYearsBtn = document.getElementById('showAllYearsBtn');
+  const rateContextValue = document.getElementById('rateContextValue');
+  const comparisonUtilityLabel = document.getElementById('comparisonUtilityLabel');
+  const comparisonUtilityRate = document.getElementById('comparisonUtilityRate');
+  const comparisonLockRate = document.getElementById('comparisonLockRate');
+  const comparisonStrip = document.getElementById('comparisonStrip');
+  const comparisonPvSide = document.getElementById('comparisonPvSide');
+  const comparisonPvValue = document.getElementById('comparisonPvValue');
+  const initialDiscount = document.getElementById('initialDiscount');
+  const initialDiscountValue = document.getElementById('initialDiscountValue');
+  const estimated25YearSavings = document.getElementById('estimated25YearSavings');
+  const rateFootnote = document.getElementById('rateFootnote');
+  const additionalEquipmentToggle = document.getElementById('additionalEquipmentToggle');
+  const equipmentOptions = document.getElementById('equipmentOptions');
+  const photovoltaicToggle = document.getElementById('photovoltaicToggle');
+  const pvFields = document.getElementById('pvFields');
+  const pvOffset = document.getElementById('pvOffset');
+  const pvQuantity = document.getElementById('pvQuantity');
+  const pvInitialRate = document.getElementById('pvInitialRate');
+  const pvAnnualKwh = document.getElementById('pvAnnualKwh');
+  const chartToggle = document.getElementById('chartToggle');
+  const chartPanel = document.getElementById('chartPanel');
+  const chartBars = document.getElementById('chartBars');
+  const chartLabels = document.getElementById('chartLabels');
+  const chartTitleEl = document.getElementById('chartTitle');
+  const ledgerHeaderLabel = document.getElementById('ledgerHeaderLabel');
+  const ledgerInputHeader = document.getElementById('ledgerInputHeader');
+  const ledgerHeaderTotal = document.getElementById('ledgerHeaderTotal');
+  const sectionTitleEl = document.getElementById('ledgerSectionTitle');
+  const sectionHintEl = document.getElementById('ledgerSectionHint');
+  const billTitleEl = document.getElementById('billTitle');
+  const usageLabelEl = document.getElementById('usageLabel');
+  const costLabelEl = document.getElementById('costLabel');
+  const peakStatLabel = document.getElementById('peakStatLabel');
+  const lowStatLabel = document.getElementById('lowStatLabel');
+  const peakValueEl = document.getElementById('peakValue');
+  const peakSubEl = document.getElementById('peakSub');
+  const lowValueEl = document.getElementById('lowValue');
+  const lowSubEl = document.getElementById('lowSub');
+  const custName = document.getElementById('custName');
+  const custAddress = document.getElementById('custAddress');
+  const custPhone = document.getElementById('custPhone');
+  const custEmail = document.getElementById('custEmail');
+  const rateSchedule = document.getElementById('rateSchedule');
+  const rateScheduleOtherField = document.getElementById('rateScheduleOtherField');
+  const rateScheduleOther = document.getElementById('rateScheduleOther');
+  const meterNumber = document.getElementById('meterNumber');
+  const custNotes = document.getElementById('custNotes');
+  const careYes = document.getElementById('careYes');
+  const careNo = document.getElementById('careNo');
+  const copyBtn = document.getElementById('copyBtn');
+  const proposalPreview = document.getElementById('proposalPreview');
+  const proposalText = document.getElementById('proposalText');
+
+  // CARE toggle
+  careYes.addEventListener('click', () => {
+    careValue = careValue === 'Yes' ? null : 'Yes';
+    updateCareButtons();
+  });
+  careNo.addEventListener('click', () => {
+    careValue = careValue === 'No' ? null : 'No';
+    updateCareButtons();
+  });
+  function updateCareButtons() {
+    careYes.className = 'care-btn' + (careValue === 'Yes' ? ' active-yes' : '');
+    careNo.className  = 'care-btn' + (careValue === 'No'  ? ' active-no'  : '');
+    careYes.setAttribute('aria-pressed', String(careValue === 'Yes'));
+    careNo.setAttribute('aria-pressed',  String(careValue === 'No'));
+  }
+
+  // Helpers
+  function getDays(mi) { return (mi === 1 && leapYear.checked) ? 29 : MONTH_DEFS[mi].days; }
+  function computePeriods(key) {
+    return UTILITIES[key].getPeriods().map(p => ({
+      label: p.label, months: p.months,
+      days: p.months.reduce((s, m) => s + getDays(m), 0),
+    }));
+  }
+  function expandToMonths(periods, vals) {
+    const mv = new Array(12).fill(0);
+    periods.forEach((p, i) => p.months.forEach(m => { mv[m] = vals[i]; }));
+    return mv;
+  }
+  function aggregateFromMonths(mv, periods) {
+    return periods.map(p => {
+      const w = p.months.reduce((s, m) => s + mv[m] * getDays(m), 0);
+      return p.days > 0 ? w / p.days : 0;
+    });
+  }
+  function roundDisplay(v) { const r = Math.round(v * 100) / 100; return r === 0 ? '' : String(r); }
+  function fmt(n, d = 0) { return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+
+  function buildLedger(values) {
+    const def = UTILITIES[currentUtility];
+    ledger.innerHTML = '';
+    chartBars.innerHTML = '';
+    chartLabels.innerHTML = '';
+    seasonBar.innerHTML = '';
+    seasonLabels.innerHTML = '';
+    rows = []; chartCols = []; segments = [];
+
+    ledgerHeaderLabel.textContent = def.ledgerLabel;
+    ledgerInputHeader.textContent = inputMode === 'daily' ? 'kWh / day' : 'kWh / total';
+    ledgerHeaderTotal.textContent = inputMode === 'daily'
+      ? def.totalLabel
+      : (currentUtility === 'SCE' ? 'kWh / month' : 'kWh / period');
+    sectionTitleEl.textContent = def.sectionTitle;
+    sectionHintEl.textContent = inputMode === 'daily'
+      ? def.sectionHint
+      : (currentUtility === 'SCE'
+          ? "Enter the total kWh used for each month. We'll add the monthly totals to get the annual total."
+          : "Enter the total kWh used for each two-month billing period. We'll add the period totals to get the annual total.");
+    chartTitleEl.textContent = def.chartTitle;
+    billTitleEl.textContent = def.billTitle;
+    usageLabelEl.textContent = def.usageLabel;
+    costLabelEl.textContent = def.costLabel;
+    peakStatLabel.textContent = 'Peak ' + def.peakNoun;
+    lowStatLabel.textContent = 'Lowest ' + def.peakNoun;
+
+    const n = currentPeriods.length;
+    currentPeriods.forEach((p, i) => {
+      const isPair = p.label.length > 4;
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = `
+        <div class="row-bar"></div>
+        <div class="row-content">
+          <div class="row-label">
+            <span class="month-name${isPair ? ' pair' : ''}">${p.label}</span>
+            <span class="month-days">${p.days} days</span>
+          </div>
+          <div class="row-input">
+            <input type="number" inputmode="decimal" step="0.1" min="0" placeholder="0.0"
+              aria-label="${p.label} ${inputMode === 'daily' ? 'average daily' : 'total'} usage in kilowatt-hours">
+          </div>
+          <div class="row-result"><span>0</span></div>
+        </div>`;
+      ledger.appendChild(row);
+      const r = {
+        input: row.querySelector('input'),
+        bar: row.querySelector('.row-bar'),
+        result: row.querySelector('.row-result span'),
+        daysLabel: row.querySelector('.month-days'),
+      };
+      if (values && values[i]) r.input.value = roundDisplay(values[i]);
+      r.input.addEventListener('input', recalc);
+      rows.push(r);
+
+      const col = document.createElement('div'); col.className = 'chart-col';
+      const bar = document.createElement('div'); bar.className = 'chart-bar';
+      col.appendChild(bar); chartBars.appendChild(col); chartCols.push(bar);
+
+      const lbl = document.createElement('span'); lbl.textContent = p.label;
+      chartLabels.appendChild(lbl);
+
+      const seg = document.createElement('span');
+      const hue = 195 - 150 * Math.sin((i / Math.max(n - 1, 1)) * Math.PI);
+      seg.style.background = `hsl(${hue}, 65%, 58%)`;
+      seasonBar.appendChild(seg); segments.push(seg);
+    });
+
+    const idxSet = new Set([0, Math.round((n-1)/3), Math.round(2*(n-1)/3), n-1]);
+    [...idxSet].sort((a,b)=>a-b).forEach(idx => {
+      const s = document.createElement('span'); s.textContent = currentPeriods[idx].label;
+      seasonLabels.appendChild(s);
+    });
+    recalc();
+  }
+
+  function recalc() {
+    const subtotals = currentPeriods.map((p, i) => {
+      rows[i].daysLabel.textContent = p.days + ' days';
+      const entered = parseFloat(rows[i].input.value) || 0;
+      return inputMode === 'daily' ? entered * p.days : entered;
+    });
+
+    computedAnnualKwh = subtotals.reduce((a, b) => a + b, 0);
+    annualTotalEl.textContent = fmt(computedAnnualKwh, 0);
+
+    const maxSub = Math.max(...subtotals, 0);
+    rows.forEach((r, i) => {
+      r.result.textContent = fmt(subtotals[i], 0);
+      r.bar.style.width = maxSub > 0 ? (subtotals[i] / maxSub * 100) + '%' : '0%';
+    });
+
+    const hasData = computedAnnualKwh > 0;
+    seasonBar.classList.toggle('is-empty', !hasData);
+    segments.forEach((seg, i) => {
+      seg.style.width = (hasData ? subtotals[i] / computedAnnualKwh * 100 : 100 / currentPeriods.length) + '%';
+    });
+
+    let peakIdx = 0, lowIdx = 0;
+    subtotals.forEach((v, i) => { if (v > subtotals[peakIdx]) peakIdx = i; if (v < subtotals[lowIdx]) lowIdx = i; });
+    const distinct = subtotals[peakIdx] !== subtotals[lowIdx];
+    chartCols.forEach((bar, i) => {
+      const h = maxSub > 0 ? subtotals[i] / maxSub * 100 : 0;
+      bar.style.height = (hasData ? Math.max(h, 3) : 3) + '%';
+      bar.classList.toggle('peak', hasData && distinct && i === peakIdx);
+      bar.classList.toggle('low',  hasData && distinct && i === lowIdx);
+    });
+    if (hasData) {
+      peakValueEl.textContent = fmt(subtotals[peakIdx], 0) + ' kWh'; peakSubEl.textContent = currentPeriods[peakIdx].label;
+      lowValueEl.textContent  = fmt(subtotals[lowIdx],  0) + ' kWh'; lowSubEl.textContent  = currentPeriods[lowIdx].label;
+    } else {
+      peakValueEl.textContent = '\u2014'; peakSubEl.textContent = '\u2013';
+      lowValueEl.textContent  = '\u2014'; lowSubEl.textContent  = '\u2013';
+    }
+
+    const billKwh  = parseFloat(monthKwhInput.value) || 0;
+    const billCost = parseFloat(monthCostInput.value) || 0;
+    const ready = billKwh > 0 && monthCostInput.value !== '';
+
+    computedMonthlyKwh  = billKwh;
+    computedMonthlyCost = billCost;
+
+    if (ready) {
+      const ratePerKwh = billCost / billKwh;
+      computedCentsPerKwh = ratePerKwh * 100;
+      costPerKwhEl.textContent = '$' + ratePerKwh.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 4 });
+      const annual = ratePerKwh * computedAnnualKwh;
+      annualCostEl.textContent = '$' + fmt(annual, 2);
+      monthlyCostEl.textContent = '$' + fmt(annual / 12, 2);
+    } else {
+      computedCentsPerKwh = null;
+      costPerKwhEl.textContent = '\u2014';
+      annualCostEl.textContent = '\u2014';
+      monthlyCostEl.textContent = '\u2014';
+    }
+  }
+
+  // Current residential rate schedules. "Other" exposes a manual field.
+  const RATE_SCHEDULES = {
+    SCE: [
+      { value: 'D', label: 'D' },
+      { value: 'D-CARE', label: 'D-CARE' },
+      { value: 'D-FERA', label: 'D-FERA' },
+      { value: 'TOU-D-4-9', label: 'TOU-D-4-9' },
+      { value: 'TOU-D-4-9-CARE', label: 'TOU-D-4-9-CARE' },
+      { value: 'TOU-D-4-9-FERA', label: 'TOU-D-4-9-FERA' },
+      { value: 'TOU-D-5-8', label: 'TOU-D-5-8' },
+      { value: 'TOU-D-5-8-CARE', label: 'TOU-D-5-8-CARE' },
+      { value: 'TOU-D-5-8-FERA', label: 'TOU-D-5-8-FERA' },
+      { value: 'TOU-D-PRIME', label: 'TOU-D-PRIME' },
+      { value: 'TOU-D-PRIME-CARE', label: 'TOU-D-PRIME-CARE' },
+      { value: 'TOU-D-PRIME-FERA', label: 'TOU-D-PRIME-FERA' },
+      { value: 'OTHER', label: 'Other' }
+    ],
+    LADWP: [
+      { value: 'R-1A', label: 'R-1A — Standard Residential' },
+      { value: 'R-1B', label: 'R-1B — Time-of-Use Residential' },
+      { value: 'R-1D', label: 'R-1D — Low-Income Residential' },
+      { value: 'R-1E', label: 'R-1E — Lifeline Residential' },
+      { value: 'A-1', label: 'A-1 — Special Residential Service' },
+      { value: 'OTHER', label: 'Other' }
+    ]
+  };
+
+  function populateRateSchedules(preserveValue = null) {
+    const options = RATE_SCHEDULES[currentUtility];
+    rateSchedule.innerHTML = '';
+
+    options.forEach(option => {
+      const el = document.createElement('option');
+      el.value = option.value;
+      el.textContent = option.label;
+      rateSchedule.appendChild(el);
+    });
+
+    const validPreserved = preserveValue && options.some(o => o.value === preserveValue);
+    rateSchedule.value = validPreserved ? preserveValue : options[0].value;
+    updateOtherRateField();
+  }
+
+  function updateOtherRateField() {
+    const isOther = rateSchedule.value === 'OTHER';
+    rateScheduleOtherField.style.display = isOther ? 'flex' : 'none';
+    rateScheduleOther.required = isOther;
+    if (!isOther) rateScheduleOther.value = '';
+  }
+
+  function updateCareFromRateSchedule() {
+    const schedule = rateSchedule.value;
+
+    if (schedule === 'OTHER') return;
+
+    if (schedule.includes('CARE')) {
+      careValue = 'Yes';
+    } else if (schedule.includes('FERA') || schedule) {
+      // FERA and all other non-CARE schedules are not CARE.
+      careValue = 'No';
+    }
+
+    updateCareButtons();
+  }
+
+  rateSchedule.addEventListener('change', () => {
+    updateOtherRateField();
+    updateCareFromRateSchedule();
+  });
+
+  populateRateSchedules();
+  updateCareFromRateSchedule();
+
+  function buildProposal() {
+    const name      = custName.value.trim();
+    const firstName = name.split(' ')[0] || 'Customer';
+    const address   = custAddress.value.trim();
+    const phone     = custPhone.value.trim();
+    const email     = custEmail.value.trim();
+    const rate      = rateSchedule.value === 'OTHER'
+      ? rateScheduleOther.value.trim()
+      : rateSchedule.value;
+    const meter     = meterNumber.value.trim();
+    const notes     = custNotes.value.trim();
+    const care      = careValue || '—';
+    const utility   = currentUtility;
+
+    const annualKwh  = computedAnnualKwh > 0 ? Math.round(computedAnnualKwh).toLocaleString() + ' kWh' : '—';
+
+    // Proposal monthly average is derived from the annual usage and the
+    // bill's calculated cost-per-kWh rate, rather than the current bill's
+    // raw kWh / dollar amounts.
+    const proposalMonthlyKwh = computedAnnualKwh > 0 ? computedAnnualKwh / 12 : null;
+    const proposalMonthlyCost = proposalMonthlyKwh !== null && computedCentsPerKwh !== null
+      ? proposalMonthlyKwh * (computedCentsPerKwh / 100)
+      : null;
+
+    const monthlyAvg = proposalMonthlyKwh !== null && proposalMonthlyCost !== null
+      ? fmt(proposalMonthlyKwh, 0) + ' kWh, $' + fmt(proposalMonthlyCost, 2)
+      : '—';
+
+    const centsAvg = computedCentsPerKwh !== null
+      ? computedCentsPerKwh.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + '¢'
+      : '—';
+
+    return [
+      `PROPOSAL REQUEST \u2014 Cam`,
+      ``,
+      `Full name: ${name || '\u2014'}`,
+      `Address: ${address || '\u2014'}`,
+      `Phone: ${phone || '\u2014'}`,
+      `Email: ${email || '\u2014'}`,
+      `Rate Schedule: ${rate || '\u2014'}`,
+      `Meter #: ${meter || '\u2014'}`,
+      `Usage: ${annualKwh}`,
+      `Utility: ${utility}`,
+      `CARE: ${care}`,
+      `Notes: ${notes || '\u2014'}`,
+      ``,
+      `Current monthly avg: ${monthlyAvg}`,
+      `Current kWh price avg: ${centsAvg}`,
+    ].join('\n');
+  }
+
+  copyBtn.addEventListener('click', () => {
+    const text = buildProposal();
+    proposalText.textContent = text;
+    proposalPreview.classList.add('visible');
+
+    navigator.clipboard.writeText(text).then(() => {
+      copyBtn.classList.add('copied');
+      copyBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Copied!`;
+      setTimeout(() => {
+        copyBtn.classList.remove('copied');
+        copyBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2H3.5A1.5 1.5 0 0 0 2 3.5V9.5A1.5 1.5 0 0 0 3.5 11H5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Copy proposal request`;
+      }, 2200);
+    }).catch(() => {
+      // Clipboard blocked — just show the preview so they can copy manually
+      copyBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2H3.5A1.5 1.5 0 0 0 2 3.5V9.5A1.5 1.5 0 0 0 3.5 11H5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Copy proposal request`;
+    });
+  });
+
+  // Daily / monthly input mode switch
+  document.querySelectorAll('.seg-btn[data-input-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const newMode = btn.dataset.inputMode;
+      if (newMode === inputMode) return;
+
+      // Convert the currently entered values so the displayed annual total
+      // stays exactly the same when switching between daily and monthly.
+      const oldVals = rows.map(r => parseFloat(r.input.value) || 0);
+      const periodTotals = currentPeriods.map((p, i) =>
+        inputMode === 'daily' ? oldVals[i] * p.days : oldVals[i]
+      );
+
+      inputMode = newMode;
+
+      document.querySelectorAll('.seg-btn[data-input-mode]').forEach(b => {
+        const active = b.dataset.inputMode === inputMode;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-pressed', String(active));
+      });
+
+      rows.forEach((r, i) => {
+        const value = inputMode === 'daily'
+          ? (currentPeriods[i].days > 0 ? periodTotals[i] / currentPeriods[i].days : 0)
+          : periodTotals[i];
+        r.input.value = value > 0 ? roundDisplay(value) : '';
+        r.input.setAttribute(
+          'aria-label',
+          `${currentPeriods[i].label} ${inputMode === 'daily' ? 'average daily' : 'total'} usage in kilowatt-hours`
+        );
+      });
+
+      const def = UTILITIES[currentUtility];
+      sectionHintEl.textContent = inputMode === 'daily'
+        ? def.sectionHint
+        : (currentUtility === 'SCE'
+            ? "Enter the total kWh used for each month. We'll add the monthly totals to get the annual total."
+            : "Enter the total kWh used for each two-month billing period. We'll add the period totals to get the annual total.");
+
+      recalc();
+    });
+  });
+
+  // Utility switch
+  document.querySelectorAll('.seg-btn[data-utility]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const newUtility = btn.dataset.utility;
+      const previousRate = rateSchedule.value;
+      document.querySelectorAll('.seg-btn[data-utility]').forEach(b => {
+        const active = b === btn;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-pressed', String(active));
+      });
+      if (newUtility === currentUtility) return;
+      const oldVals = rows.map(r => parseFloat(r.input.value) || 0);
+      const periodTotals = currentPeriods.map((p, i) =>
+        inputMode === 'daily' ? oldVals[i] * p.days : oldVals[i]
+      );
+      const mv = expandToMonths(
+        currentPeriods,
+        inputMode === 'daily'
+          ? periodTotals.map((total, i) => currentPeriods[i].days > 0 ? total / currentPeriods[i].days : 0)
+          : periodTotals
+      );
+
+      currentUtility = newUtility;
+      currentPeriods = computePeriods(currentUtility);
+      populateRateSchedules(previousRate);
+      updateCareFromRateSchedule();
+      if (pageTwoInitialized) {
+        const defaults = RATE_DEFAULTS[currentUtility];
+        utilityRaiseRate.value = defaults.utilityRate;
+        rateLockRate.value = defaults.rateLock;
+        utilityRaiseTitle.textContent = currentUtility + ' Annual Increase';
+        utilityColumnHeader.textContent = currentUtility;
+        rateContextValue.textContent = `${custName.value.trim() || 'Customer'} • ${currentUtility}`;
+        renderRateProjection();
+      }
+
+      // Rebuild using the same input mode, preserving the monthly/period totals.
+      const newVals = aggregateFromMonths(mv, currentPeriods);
+      const displayVals = inputMode === 'daily'
+        ? newVals
+        : currentPeriods.map(p => p.months.reduce((sum, m) => sum + (mv[m] * getDays(m)), 0));
+
+      buildLedger(displayVals);
+    });
+  });
+
+  leapYear.addEventListener('change', () => { currentPeriods = computePeriods(currentUtility); recalc(); });
+  monthKwhInput.addEventListener('input', () => {
+    recalc();
+    if (!pageTwoInitialized) return;
+    const monthly = currentMonthlyAverageForRateLock();
+    utilityStartAmount.value = monthly > 0 ? monthly.toFixed(2) : '';
+    rateLockStartAmount.value = monthly > 0 ? monthly.toFixed(2) : '';
+    renderRateProjection();
+    renderPhotovoltaicEquivalent();
+  });
+  monthCostInput.addEventListener('input', () => {
+    recalc();
+    if (!pageTwoInitialized) return;
+    const monthly = currentMonthlyAverageForRateLock();
+    utilityStartAmount.value = monthly > 0 ? monthly.toFixed(2) : '';
+    rateLockStartAmount.value = monthly > 0 ? monthly.toFixed(2) : '';
+    renderRateProjection();
+    renderPhotovoltaicEquivalent();
+  });
+
+
+  // Dummy/test customer data for quick end-to-end testing.
+  dummyBtn.addEventListener('click', () => {
+    currentUtility = 'SCE';
+    currentPeriods = computePeriods(currentUtility);
+
+    custName.value = 'Alex Morgan';
+    custAddress.value = '4827 Cedar Grove Ave, Riverside, CA 92507';
+    custPhone.value = '(951) 555-0147';
+    custEmail.value = 'alex.morgan@example.com';
+    meterNumber.value = '472918305';
+    custNotes.value = 'Dummy customer for worksheet testing.';
+
+    populateRateSchedules('TOU-D-5-8');
+    updateCareFromRateSchedule();
+    careValue = 'No';
+    updateCareButtons();
+
+    // Exactly 6,500 kWh/year, allocated by calendar-day proportions.
+    // Force Daily mode so these values are interpreted as kWh/day.
+    inputMode = 'daily';
+    document.querySelectorAll('.seg-btn[data-input-mode]').forEach(b => {
+      const active = b.dataset.inputMode === 'daily';
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', String(active));
+    });
+
+    rows.forEach((row, i) => {
+      row.input.value = (6500 / 365).toFixed(2);
+    });
+
+    // Representative bill: 550 kWh at $0.40/kWh.
+    monthKwhInput.value = '550';
+    monthCostInput.value = '220';
+
+    recalc();
+
+    pageTwoInitialized = false;
+    syncRateCalculatorDefaults(true);
+  });
+
+  // Page 2 — annual rate increase calculator
+  const RATE_DEFAULTS = {
+    SCE: { utilityRate: 12, rateLock: 3.5 },
+    LADWP: { utilityRate: 8, rateLock: 2.99 }
+  };
+
+  let pageTwoInitialized = false;
+
+  function currentMonthlyAverageForRateLock() {
+    return computedMonthlyKwh !== null && computedCentsPerKwh !== null
+      ? (computedAnnualKwh / 12) * (computedCentsPerKwh / 100)
+      : 0;
+  }
+
+  function moneyShort(v) {
+    return '$' + Number(v || 0).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function syncRateCalculatorDefaults(forceAmounts = false) {
+    const defaults = RATE_DEFAULTS[currentUtility];
+    const monthly = currentMonthlyAverageForRateLock();
+
+    utilityRaiseTitle.textContent = currentUtility + ' Annual Increase';
+    utilityColumnHeader.textContent = currentUtility;
+    rateContextValue.textContent = `${custName.value.trim() || 'Customer'} • ${currentUtility}`;
+
+    if (forceAmounts || !pageTwoInitialized) {
+      utilityStartAmount.value = monthly > 0 ? monthly.toFixed(2) : '';
+      rateLockStartAmount.value = monthly > 0 ? monthly.toFixed(2) : '';
+      utilityRaiseRate.value = defaults.utilityRate;
+      rateLockRate.value = defaults.rateLock;
+    }
+
+    pageTwoInitialized = true;
+    renderRateProjection();
+  }
+
+  function renderRateProjection() {
+    const utilityStart = parseFloat(utilityStartAmount.value) || 0;
+    const lockStart = parseFloat(rateLockStartAmount.value) || 0;
+    const utilityRate = (parseFloat(utilityRaiseRate.value) || 0) / 100;
+    const lockRate = (parseFloat(rateLockRate.value) || 0) / 100;
+
+    projectionRows.innerHTML = '';
+
+    let utility25YearTotal = 0;
+    let lock25YearTotal = 0;
+
+    for (let year = 0; year <= 25; year++) {
+      const utilityValue = utilityStart * Math.pow(1 + utilityRate, year);
+      const lockValue = lockStart * Math.pow(1 + lockRate, year);
+      const difference = utilityValue - lockValue;
+
+      // Year 0 is the current snapshot and is shown for context, but it is
+      // not included in the 25-year savings total. Years 1–25 each represent
+      // 12 months of projected cost.
+      if (year > 0) {
+        utility25YearTotal += utilityValue * 12;
+        lock25YearTotal += lockValue * 12;
+      }
+
+      const pvAnnual = parseFloat(pvAnnualKwh.value) || 0;
+      const pvCurrentMonthlyEquivalent = computedCentsPerKwh !== null && pvAnnual > 0
+        ? (pvAnnual / 12) * (computedCentsPerKwh / 100)
+        : 0;
+      const pvMonthlyEquivalent = pvCurrentMonthlyEquivalent * Math.pow(1 + utilityRate, year);
+
+      const row = document.createElement('div');
+      row.className = 'projection-row' + (year > 5 ? ' future' : '');
+      row.innerHTML = `
+        <span class="pv-value">${moneyShort(pvMonthlyEquivalent)}</span>
+        <span class="year">${year}</span>
+        <span class="utility-value">${moneyShort(utilityValue)}</span>
+        <span class="lock-value">${moneyShort(lockValue)}</span>
+        <span class="difference">${difference >= 0 ? '+' : '−'}${moneyShort(Math.abs(difference))}</span>
+      `;
+      projectionRows.appendChild(row);
+    }
+
+    const savings = utility25YearTotal - lock25YearTotal;
+    estimated25YearSavings.textContent = moneyShort(Math.max(0, savings));
+
+    // Show Initial Discount only when the Rate Lock starts below the utility.
+    const initialDifference = utilityStart - lockStart;
+    if (initialDifference > 0) {
+      initialDiscount.classList.add('visible');
+      initialDiscountValue.textContent = moneyShort(initialDifference);
+    } else {
+      initialDiscount.classList.remove('visible');
+    }
+
+    comparisonUtilityLabel.textContent = currentUtility;
+    comparisonUtilityRate.textContent = `${(utilityRate * 100).toFixed(2)}%`;
+    comparisonLockRate.textContent = `${(lockRate * 100).toFixed(2)}%`;
+
+    projectionTable.classList.toggle('show-all', showAllYearsBtn.getAttribute('aria-expanded') === 'true');
+    const showingAll = projectionTable.classList.contains('show-all');
+    showAllYearsBtn.textContent = showingAll ? 'Show first 5 years' : 'Show all 25 years';
+    showAllYearsBtn.setAttribute('aria-expanded', String(showingAll));
+    projectionFade.style.display = showingAll ? 'none' : 'block';
+
+    rateFootnote.textContent =
+      `Projection assumes ${currentUtility}'s annual increase compounds at ${(utilityRate * 100).toFixed(2)}% and the rate lock compounds at ${(lockRate * 100).toFixed(2)}% once per year.`;
+  }
+
+  function goToPageTwo() {
+    syncRateCalculatorDefaults();
+    pageOne.classList.add('hidden-page');
+    pageTwo.classList.remove('hidden-page');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function goToPageOne() {
+    pageTwo.classList.add('hidden-page');
+    pageOne.classList.remove('hidden-page');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  nextBtn.addEventListener('click', goToPageTwo);
+  backBtn.addEventListener('click', goToPageOne);
+  pdfPageHintBtn.addEventListener('click', () => exportBtn.click());
+
+  [utilityStartAmount, rateLockStartAmount, utilityRaiseRate, rateLockRate].forEach(input => {
+    input.addEventListener('input', renderRateProjection);
+  });
+
+  showAllYearsBtn.addEventListener('click', () => {
+    const show = showAllYearsBtn.getAttribute('aria-expanded') !== 'true';
+    showAllYearsBtn.setAttribute('aria-expanded', String(show));
+    renderRateProjection();
+  });
+
+
+  function renderPhotovoltaicEquivalent() {
+    const selected = photovoltaicToggle.checked;
+    const annualKwh = parseFloat(pvAnnualKwh.value) || 0;
+    const pvRate = parseFloat(pvInitialRate.value) || 0;
+    const centsRate = computedCentsPerKwh;
+
+    pvFields.classList.toggle('visible', selected);
+
+    if (selected && annualKwh > 0) {
+      // Auto-calculate PV offset from annual production vs. the customer's
+      // annual usage, rounded to the nearest whole percent.
+      if (computedAnnualKwh > 0) {
+        pvOffset.value = Math.round((annualKwh / computedAnnualKwh) * 100);
+      }
+
+      // Auto-fill the Rate Lock starting monthly amount from the PV rate
+      // multiplied by annual PV production, divided by 12.
+      if (pvRate > 0) {
+        rateLockStartAmount.value = ((pvRate * annualKwh) / 12).toFixed(2);
+      }
+    }
+
+    if (selected && annualKwh > 0 && centsRate !== null) {
+      const monthlyEquivalent = (annualKwh / 12) * (centsRate / 100);
+      comparisonPvSide.style.display = 'block';
+      comparisonPvValue.textContent = moneyShort(monthlyEquivalent);
+      comparisonStrip.classList.add('has-pv');
+      projectionTable.classList.add('has-pv');
+      projectionPvHeader.textContent = 'PV Equivalent';
+    } else {
+      comparisonPvSide.style.display = 'none';
+      comparisonStrip.classList.remove('has-pv');
+      projectionTable.classList.remove('has-pv');
+    }
+
+    renderRateProjection();
+  }
+
+  additionalEquipmentToggle.addEventListener('change', () => {
+    equipmentOptions.classList.toggle('visible', additionalEquipmentToggle.checked);
+
+    if (!additionalEquipmentToggle.checked) {
+      photovoltaicToggle.checked = false;
+      pvOffset.value = '';
+      pvQuantity.value = '';
+      pvInitialRate.value = '';
+      pvAnnualKwh.value = '';
+    }
+
+    renderPhotovoltaicEquivalent();
+  });
+
+  photovoltaicToggle.addEventListener('change', renderPhotovoltaicEquivalent);
+  [pvOffset, pvQuantity, pvInitialRate, pvAnnualKwh].forEach(input => {
+    input.addEventListener('input', renderPhotovoltaicEquivalent);
+  });
+
+  // Light / dark reading mode
+  themeToggle.addEventListener('click', () => {
+    const light = document.documentElement.classList.toggle('light-mode');
+    themeToggle.setAttribute('aria-pressed', String(light));
+    themeToggle.textContent = light ? 'Dark mode' : 'Light mode';
+  });
+
+  // Generate a purpose-built proposal report rather than exporting a screenshot.
+  exportBtn.addEventListener('click', () => {
+    if (!window.jspdf) {
+      alert('PDF export library could not be loaded. Please check your internet connection and try again.');
+      return;
+    }
+
+    exportBtn.disabled = true;
+    exportBtn.textContent = 'Generating…';
+
+    try {
+      // If the user exports directly from page 1, initialize page-2 defaults
+      // from the current worksheet before building the report.
+      if (!pageTwoInitialized) syncRateCalculatorDefaults(true);
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: 'letter',
+        compress: true
+      });
+
+      const W = pdf.internal.pageSize.getWidth();
+      const H = pdf.internal.pageSize.getHeight();
+      const M = 42;
+      const contentW = W - M * 2;
+
+      // Report palette — intentionally cleaner and more print-oriented than the app UI.
+      const C = {
+        ink: [28, 36, 32],
+        muted: [103, 114, 108],
+        line: [218, 223, 220],
+        surface: [246, 248, 246],
+        white: [255, 255, 255],
+        amber: [184, 106, 0],
+        amberLight: [251, 241, 225],
+        green: [36, 122, 77],
+        greenLight: [231, 244, 236],
+        blue: [22, 113, 141],
+        blueLight: [231, 243, 247]
+      };
+
+      const setFill = c => pdf.setFillColor(...c);
+      const setText = c => pdf.setTextColor(...c);
+      const setDraw = c => pdf.setDrawColor(...c);
+
+      let y = M;
+
+      function roundedBox(x, yy, w, h, fill, radius = 8, stroke = null) {
+        setFill(fill);
+        if (stroke) setDraw(stroke);
+        pdf.roundedRect(x, yy, w, h, radius, radius, stroke ? 'FD' : 'F');
+      }
+
+      function sectionTitle(title, subtitle = '') {
+        setText(C.ink);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.text(title.toUpperCase(), M, y);
+        y += 14;
+        if (subtitle) {
+          setText(C.muted);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(8.5);
+          pdf.text(subtitle, M, y);
+          y += 14;
+        } else {
+          y += 5;
+        }
+      }
+
+      function labelValue(label, value, x, yy, width) {
+        setText(C.muted);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(7.5);
+        pdf.text(label.toUpperCase(), x, yy);
+        setText(C.ink);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9.5);
+        const lines = pdf.splitTextToSize(String(value || '—'), width);
+        pdf.text(lines, x, yy + 12);
+        return 12 + lines.length * 10;
+      }
+
+      function money(v) {
+        return '$' + Number(v || 0).toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        });
+      }
+
+      function whole(v) {
+        return Number(v || 0).toLocaleString('en-US', {
+          maximumFractionDigits: 0
+        });
+      }
+
+      function rateText() {
+        if (rateSchedule.value === 'OTHER') {
+          return rateScheduleOther.value.trim() || 'Other';
+        }
+        return rateSchedule.value || '—';
+      }
+
+      function addPageHeader(pageNo) {
+        setFill(C.ink);
+        pdf.rect(0, 0, W, 10, 'F');
+        setText(C.ink);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.text('ENERGY USAGE WORKSHEET', M, 28);
+        setText(C.muted);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(7.5);
+        pdf.text(`Page ${pageNo}`, W - M, 28, { align: 'right' });
+      }
+
+      function footer(pageNo) {
+        const fy = H - 24;
+        setDraw(C.line);
+        pdf.setLineWidth(0.6);
+        pdf.line(M, fy - 7, W - M, fy - 7);
+        setText(C.muted);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(7);
+        pdf.text('Energy Usage Worksheet • Prepared from entered customer data', M, fy + 4);
+        pdf.text(`Page ${pageNo}`, W - M, fy + 4, { align: 'right' });
+      }
+
+      // Gather the same underlying data the worksheet uses.
+      const name = custName.value.trim() || 'Customer';
+      const address = custAddress.value.trim() || '—';
+      const phone = custPhone.value.trim() || '—';
+      const email = custEmail.value.trim() || '—';
+      const schedule = rateText();
+      const meter = meterNumber.value.trim() || '—';
+      const care = careValue || '—';
+      const utility = currentUtility;
+
+      const annualKwh = computedAnnualKwh;
+      const monthlyKwh = annualKwh > 0 ? annualKwh / 12 : null;
+      const monthlyCost = monthlyKwh !== null && computedCentsPerKwh !== null
+        ? monthlyKwh * (computedCentsPerKwh / 100)
+        : null;
+      const annualCost = monthlyCost !== null ? monthlyCost * 12 : null;
+
+      // PAGE 1 — executive-style customer report.
+      addPageHeader(1);
+
+      // Hero
+      y = 54;
+      setText(C.ink);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(24);
+      pdf.text('Energy Usage Report', M, y);
+
+      y += 16;
+      setText(C.muted);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9.5);
+      pdf.text(`${utility} • ${schedule}`, M, y);
+
+      const badgeText = care === 'Yes' ? 'CARE' : care === 'No' ? 'NON-CARE' : 'CARE STATUS —';
+      const badgeW = pdf.getTextWidth(badgeText) + 18;
+      roundedBox(W - M - badgeW, 52, badgeW, 22, care === 'Yes' ? C.greenLight : C.surface, 11, C.line);
+      setText(care === 'Yes' ? C.green : C.muted);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(7.5);
+      pdf.text(badgeText, W - M - badgeW + 9, 66);
+
+      y += 28;
+
+      // Customer identity card.
+      const identityH = 72;
+      roundedBox(M, y, contentW, identityH, C.surface, 9, C.line);
+      const col = contentW / 2;
+      labelValue('Customer', name, M + 14, y + 16, col - 28);
+      labelValue('Address', address, M + col + 8, y + 16, col - 22);
+      labelValue('Phone', phone, M + 14, y + 50, col - 28);
+      labelValue('Email', email, M + col + 8, y + 50, col - 22);
+      y += identityH + 20;
+
+      // Key metrics.
+      sectionTitle('Annual energy snapshot', 'Estimated from the monthly usage entries below.');
+      const gap = 8;
+      const cardW = (contentW - gap * 2) / 3;
+      const cardH = 74;
+      const metrics = [
+        ['ANNUAL USAGE', annualKwh > 0 ? `${whole(annualKwh)} kWh` : '—', C.amber, C.amberLight],
+        ['AVG. MONTHLY', monthlyKwh !== null ? `${whole(monthlyKwh)} kWh` : '—', C.blue, C.blueLight],
+        ['EST. MONTHLY COST', monthlyCost !== null ? money(monthlyCost) : '—', C.green, C.greenLight]
+      ];
+
+      metrics.forEach((m, i) => {
+        const x = M + i * (cardW + gap);
+        roundedBox(x, y, cardW, cardH, m[3], 9);
+        setText(C.muted);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(7);
+        pdf.text(m[0], x + 12, y + 16);
+        setText(m[2]);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(i === 0 ? 16 : 15);
+        pdf.text(m[1], x + 12, y + 41);
+        setText(C.muted);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(7);
+        pdf.text(i === 0 ? '12-month estimate' : i === 1 ? 'annual ÷ 12' : 'annualized estimate', x + 12, y + 58);
+      });
+      y += cardH + 22;
+
+      // Bill snapshot / rate.
+      sectionTitle('Current bill & rate', 'The entered bill establishes the effective cost per kWh used for the annualized estimate.');
+      const billH = 78;
+      roundedBox(M, y, contentW, billH, C.white, 9, C.line);
+
+      const billKwh = parseFloat(monthKwhInput.value) || 0;
+      const billCost = parseFloat(monthCostInput.value) || 0;
+      const billRate = computedCentsPerKwh !== null ? computedCentsPerKwh : null;
+
+      const billCols = [0, 0.25, 0.5, 0.75];
+      const billLabels = ['BILL USAGE', 'BILL COST', 'COST / KWH', 'ANNUAL COST'];
+      const billValues = [
+        billKwh > 0 ? `${whole(billKwh)} kWh` : '—',
+        billCost > 0 ? money(billCost) : '—',
+        billRate !== null ? `${billRate.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 2})}¢` : '—',
+        annualCost !== null ? money(annualCost) : '—'
+      ];
+
+      billLabels.forEach((label, i) => {
+        const x = M + contentW * billCols[i] + 13;
+        setText(C.muted);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(7);
+        pdf.text(label, x, y + 20);
+        setText(C.ink);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text(billValues[i], x, y + 42);
+      });
+      y += billH + 22;
+
+      // Usage profile with proportional bars.
+      sectionTitle('Usage profile');
+      const periodValues = currentPeriods.map((p, i) => {
+        const entered = parseFloat(rows[i].input.value) || 0;
+        return inputMode === 'daily' ? entered * p.days : entered;
+      });
+      const maxVal = Math.max(...periodValues, 0);
+      const chartX = M;
+      const chartY = y;
+      const chartH = 104;
+      roundedBox(chartX, chartY, contentW, chartH, C.surface, 9);
+      const barAreaX = chartX + 14;
+      const barAreaY = chartY + 17;
+      const barAreaW = contentW - 28;
+      const barAreaH = 60;
+      const barGap = 4;
+      const barW = (barAreaW - barGap * (periodValues.length - 1)) / periodValues.length;
+
+      periodValues.forEach((v, i) => {
+        const bh = maxVal > 0 ? Math.max(3, (v / maxVal) * barAreaH) : 3;
+        const bx = barAreaX + i * (barW + barGap);
+        setFill(i === periodValues.indexOf(maxVal) && maxVal > 0 ? C.amber : C.blue);
+        pdf.roundedRect(bx, barAreaY + barAreaH - bh, barW, bh, 2, 2, 'F');
+        setText(C.muted);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(5.8);
+        pdf.text(currentPeriods[i].label, bx + barW / 2, barAreaY + barAreaH + 11, { align: 'center' });
+      });
+
+      setText(C.muted);
+      pdf.setFontSize(6.5);
+      const inputDescriptor = inputMode === 'daily' ? 'Input: average kWh/day' : 'Input: total kWh/period';
+      pdf.text(inputDescriptor, chartX + 14, chartY + 94);
+      if (maxVal > 0) {
+        const peakIdx = periodValues.indexOf(maxVal);
+        pdf.text(`Peak: ${currentPeriods[peakIdx].label} • ${whole(maxVal)} kWh`, chartX + contentW - 14, chartY + 94, { align: 'right' });
+      }
+      y += chartH + 18;
+
+      // PAGE 2 — detailed ledger and proposal details.
+      pdf.addPage();
+      addPageHeader(2);
+      y = 54;
+
+      setText(C.ink);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(18);
+      pdf.text('Usage Detail & Proposal Information', M, y);
+      y += 28;
+
+      sectionTitle('Usage ledger', inputMode === 'daily'
+        ? 'Entered values are average daily usage; monthly totals are calculated from calendar days.'
+        : 'Entered values are total kWh for each month or billing period.');
+
+      const tableX = M;
+      const tableW = contentW;
+      const rowH = 24;
+      const headerH = 24;
+      const labelW = utility === 'LADWP' ? 90 : 80;
+      const entryW = 90;
+      const totalW = 95;
+      const daysW = 58;
+      const tableHeaderY = y;
+
+      roundedBox(tableX, tableHeaderY, tableW, headerH, C.ink, 5);
+      setText(C.white);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(7);
+      pdf.text(utility === 'LADWP' ? 'BILLING PERIOD' : 'MONTH', tableX + 10, tableHeaderY + 15);
+      pdf.text(inputMode === 'daily' ? 'KWH / DAY' : 'KWH ENTERED', tableX + labelW + 8, tableHeaderY + 15);
+      pdf.text('DAYS', tableX + tableW - totalW - daysW + 5, tableHeaderY + 15);
+      pdf.text('KWH / TOTAL', tableX + tableW - totalW + 5, tableHeaderY + 15);
+
+      y += headerH;
+
+      currentPeriods.forEach((p, i) => {
+        if (y + rowH > H - 55) {
+          footer(pdf.getNumberOfPages());
+          pdf.addPage();
+          addPageHeader(pdf.getNumberOfPages());
+          y = 54;
+        }
+
+        const entered = parseFloat(rows[i].input.value) || 0;
+        const subtotal = periodValues[i];
+        const fill = i % 2 === 0 ? C.white : C.surface;
+        setFill(fill);
+        pdf.rect(tableX, y, tableW, rowH, 'F');
+        setDraw(C.line);
+        pdf.setLineWidth(0.4);
+        pdf.line(tableX, y + rowH, tableX + tableW, y + rowH);
+
+        setText(C.ink);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.text(p.label, tableX + 10, y + 15);
+
+        setText(C.ink);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.text(entered > 0 ? whole(entered) : '—', tableX + labelW + 8, y + 15);
+        pdf.text(String(p.days), tableX + tableW - totalW - daysW + 5, y + 15);
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(subtotal > 0 ? whole(subtotal) : '—', tableX + tableW - totalW + 5, y + 15);
+
+        y += rowH;
+      });
+
+      setFill(C.amberLight);
+      pdf.rect(tableX, y, tableW, 27, 'F');
+      setText(C.amber);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8.5);
+      pdf.text('ESTIMATED ANNUAL USAGE', tableX + 10, y + 17);
+      pdf.text(annualKwh > 0 ? `${whole(annualKwh)} kWh` : '—', tableX + tableW - 10, y + 17, { align: 'right' });
+      y += 44;
+
+      // Proposal/customer detail card.
+      sectionTitle('Proposal information');
+      const infoH = 154;
+      roundedBox(M, y, contentW, infoH, C.surface, 9, C.line);
+
+      const half = contentW / 2;
+      labelValue('Customer', name, M + 14, y + 18, half - 24);
+      labelValue('Utility', utility, M + half + 4, y + 18, half - 18);
+      labelValue('Address', address, M + 14, y + 52, half - 24);
+      labelValue('Rate schedule', schedule, M + half + 4, y + 52, half - 18);
+      labelValue('Meter #', meter, M + 14, y + 86, half - 24);
+      labelValue('CARE program', care, M + half + 4, y + 86, half - 18);
+      labelValue('Current monthly average', monthlyKwh !== null && monthlyCost !== null
+        ? `${whole(monthlyKwh)} kWh • ${money(monthlyCost)}`
+        : '—', M + 14, y + 120, half - 24);
+      labelValue('Average cost / kWh', billRate !== null
+        ? `${billRate.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 2})}¢`
+        : '—', M + half + 4, y + 120, half - 18);
+
+      y += infoH + 18;
+
+      // Notes.
+      const notes = custNotes.value.trim();
+      if (notes) {
+        sectionTitle('Notes');
+        const noteLines = pdf.splitTextToSize(notes, contentW - 24);
+        const noteH = Math.max(52, 28 + noteLines.length * 11);
+        roundedBox(M, y, contentW, noteH, C.white, 8, C.line);
+        setText(C.ink);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.text(noteLines, M + 12, y + 22);
+        y += noteH + 12;
+      }
+
+      footer(pdf.getNumberOfPages());
+
+
+      // PAGE 3 — Annual rate increase comparison.
+      // This mirrors the interactive second page, but uses a deliberate report layout.
+      pdf.addPage();
+      addPageHeader(3);
+      y = 54;
+
+      setText(C.ink);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(18);
+      pdf.text('Annual Rate Increase Comparison', M, y);
+      y += 17;
+      setText(C.muted);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8.5);
+      pdf.text(`Utility: ${utility} • Customer: ${name}`, M, y);
+      y += 24;
+
+      const pdfUtilityStart = parseFloat(utilityStartAmount.value) || 0;
+      const pdfLockStart = parseFloat(rateLockStartAmount.value) || 0;
+      const pdfUtilityRate = (parseFloat(utilityRaiseRate.value) || 0) / 100;
+      const pdfLockRate = (parseFloat(rateLockRate.value) || 0) / 100;
+
+      roundedBox(M, y, contentW, 58, C.surface, 9, C.line);
+      labelValue('Starting monthly amount', money(pdfUtilityStart), M + 14, y + 17, 145);
+      labelValue(`${utility} annual increase`, `${(pdfUtilityRate * 100).toFixed(2)}%`, M + 170, y + 17, 110);
+      labelValue('Rate lock', `${(pdfLockRate * 100).toFixed(2)}%`, M + 300, y + 17, 90);
+      labelValue('Rate lock starting amount', money(pdfLockStart), M + 410, y + 17, contentW - 424);
+      y += 76;
+
+      sectionTitle('Monthly cost projection', 'Compounded once per year. Difference shows projected utility cost minus rate-lock cost.');
+
+      const tx = M;
+      const tw = contentW;
+      const rh = 25;
+      const hh = 27;
+      const pdfPvForCols = photovoltaicToggle.checked && (parseFloat(pvAnnualKwh.value) || 0) > 0 && computedCentsPerKwh !== null;
+      const cols = pdfPvForCols
+        ? [42, (tw - 42 - 80) / 3, (tw - 42 - 80) / 3, (tw - 42 - 80) / 3, 80]
+        : [46, (tw - 46 - 100) / 2, (tw - 46 - 100) / 2, 100];
+
+      roundedBox(tx, y, tw, hh, C.ink, 5);
+      setText(C.white);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(7);
+      pdf.text('YEAR', tx + 10, y + 17);
+      const pdfPvEnabled = photovoltaicToggle.checked && (parseFloat(pvAnnualKwh.value) || 0) > 0 && computedCentsPerKwh !== null;
+      const pdfPvCurrentMonthlyEquivalent = pdfPvEnabled
+        ? ((parseFloat(pvAnnualKwh.value) || 0) / 12) * (computedCentsPerKwh / 100)
+        : 0;
+
+      if (pdfPvEnabled) {
+        pdf.text('PV EQUIV.', tx + cols[0] - 10, y + 17, { align: 'right' });
+        pdf.text('YEAR', tx + cols[0] + 10, y + 17);
+        pdf.text(utility.toUpperCase(), tx + cols[0] + cols[1] - 10, y + 17, { align: 'right' });
+        pdf.text('RATE LOCK', tx + cols[0] + cols[1] + cols[2] - 10, y + 17, { align: 'right' });
+      } else {
+        pdf.text(utility.toUpperCase(), tx + cols[0] + cols[1] - 10, y + 17, { align: 'right' });
+        pdf.text('RATE LOCK', tx + cols[0] + cols[1] + cols[2] - 10, y + 17, { align: 'right' });
+      }
+      pdf.text('DIFFERENCE', tx + tw - 10, y + 17, { align: 'right' });
+      y += hh;
+
+      for (let yr = 0; yr <= 25; yr++) {
+        if (y + rh > H - 48) {
+          footer(pdf.getNumberOfPages());
+          pdf.addPage();
+          addPageHeader(pdf.getNumberOfPages());
+          y = 54;
+        }
+
+        const uVal = pdfUtilityStart * Math.pow(1 + pdfUtilityRate, yr);
+        const lVal = pdfLockStart * Math.pow(1 + pdfLockRate, yr);
+        const diff = uVal - lVal;
+
+        setFill(yr % 2 === 0 ? C.surface : C.white);
+        pdf.rect(tx, y, tw, rh, 'F');
+        setDraw(C.line);
+        pdf.setLineWidth(0.4);
+        pdf.line(tx, y + rh, tx + tw, y + rh);
+
+        setText(C.ink);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+
+        if (pdfPvForCols) {
+          const pdfPvMonthlyEquivalent = pdfPvCurrentMonthlyEquivalent * Math.pow(1 + pdfUtilityRate, yr);
+          setText(C.blue);
+          pdf.text(money(pdfPvMonthlyEquivalent), tx + cols[0] - 10, y + 16, { align: 'right' });
+          setText(C.ink);
+          pdf.text(String(yr), tx + cols[0] + 10, y + 16);
+        } else {
+          pdf.text(String(yr), tx + 10, y + 16);
+        }
+
+        setText(C.amber);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(
+          money(uVal),
+          pdfPvForCols ? tx + cols[0] + cols[1] - 10 : tx + cols[0] + cols[1] - 10,
+          y + 16,
+          { align: 'right' }
+        );
+
+        setText(C.green);
+        pdf.text(
+          money(lVal),
+          pdfPvForCols ? tx + cols[0] + cols[1] + cols[2] - 10 : tx + cols[0] + cols[1] + cols[2] - 10,
+          y + 16,
+          { align: 'right' }
+        );
+
+        setText(diff >= 0 ? C.muted : C.green);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text((diff >= 0 ? '+' : '−') + money(Math.abs(diff)), tx + tw - 10, y + 16, { align: 'right' });
+
+        y += rh;
+      }
+
+      const selectedEquipment = Array.from(
+        document.querySelectorAll('.equipment-check:checked')
+      ).map(cb => cb.value);
+
+      if (selectedEquipment.length > 0) {
+        y += 14;
+        roundedBox(M, y, contentW, 54, C.surface, 9, C.line);
+
+        setText(C.ink);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.text('ADDITIONAL EQUIPMENT REQUIRED FOR APPROVAL', M + 14, y + 19);
+
+        setText(C.muted);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.text(selectedEquipment.join('  •  '), M + 14, y + 37);
+
+        y += 68;
+      }
+
+      const pdfPvSelected = photovoltaicToggle.checked;
+      const pdfPvAnnualKwh = parseFloat(pvAnnualKwh.value) || 0;
+      if (pdfPvSelected && pdfPvAnnualKwh > 0 && computedCentsPerKwh !== null) {
+        const pdfPvMonthlyEquivalent = (pdfPvAnnualKwh / 12) * (computedCentsPerKwh / 100);
+        y += 14;
+        roundedBox(M, y, contentW, 58, C.blueLight, 9, C.blue);
+        setText(C.muted);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.text('PHOTOVOLTAIC', M + 14, y + 18);
+        setText(C.blue);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(15);
+        pdf.text(money(pdfPvMonthlyEquivalent), W - M - 14, y + 20, { align: 'right' });
+        setText(C.muted);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(7);
+        pdf.text('Monthly kWh $ Equivalent', M + 14, y + 36);
+        pdf.text(`${whole(pdfPvAnnualKwh)} kWh annual • ${pvQuantity.value || '—'} panels • ${pvOffset.value || '—'}% offset`, M + 14, y + 47);
+        y += 72;
+      }
+
+      const pdf25YearSavings =
+        (pdfUtilityStart * 12 * ((Math.pow(1 + pdfUtilityRate, 25) - (1 + pdfUtilityRate)) / pdfUtilityRate || 0)) -
+        (pdfLockStart * 12 * ((Math.pow(1 + pdfLockRate, 25) - (1 + pdfLockRate)) / pdfLockRate || 0));
+
+      // Handle a 0% rate cleanly (geometric-series shortcut above divides by zero).
+      function twentyFiveYearTotal(start, rate) {
+        if (rate === 0) return start * 12 * 25;
+        return start * 12 * ((Math.pow(1 + rate, 25) - 1) / rate);
+      }
+      const correctedUtilityTotal = twentyFiveYearTotal(pdfUtilityStart, pdfUtilityRate);
+      const correctedLockTotal = twentyFiveYearTotal(pdfLockStart, pdfLockRate);
+      const correctedSavings = Math.max(0, correctedUtilityTotal - correctedLockTotal);
+
+      const pdfInitialDiscount = pdfUtilityStart - pdfLockStart;
+      if (pdfInitialDiscount > 0) {
+        y += 14;
+        roundedBox(M, y, contentW, 54, C.greenLight, 9, C.green);
+        setText(C.muted);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.text('INITIAL DISCOUNT', M + 14, y + 21);
+        setText(C.green);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(15);
+        pdf.text(money(pdfInitialDiscount), W - M - 14, y + 22, { align: 'right' });
+        y += 68;
+      }
+
+      y += 14;
+      roundedBox(M, y, contentW, 78, C.greenLight, 10, C.green);
+      setText(C.muted);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8);
+      pdf.text('ESTIMATED 25-YEAR SAVINGS', W / 2, y + 20, { align: 'center' });
+      setText(C.green);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(23);
+      pdf.text(money(correctedSavings), W / 2, y + 49, { align: 'center' });
+      setText(C.muted);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7);
+      pdf.text('Total projected utility cost minus total projected rate-lock cost, including 12 months per year.', W / 2, y + 64, { align: 'center' });
+
+      footer(pdf.getNumberOfPages());
+
+      const safeName = name
+        .replace(/[^a-z0-9]+/gi, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase();
+
+      pdf.save(`${safeName || 'energy-usage-report'}.pdf`);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      alert('PDF export failed. Please try again.');
+    } finally {
+      exportBtn.disabled = false;
+      exportBtn.textContent = 'Export PDF';
+    }
+  });
+
+  resetBtn.addEventListener('click', () => {
+    rows.forEach(r => r.input.value = '');
+    inputMode = 'daily';
+    document.querySelectorAll('.seg-btn[data-input-mode]').forEach(b => {
+      const active = b.dataset.inputMode === inputMode;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', String(active));
+    });
+    leapYear.checked = false;
+    monthKwhInput.value = ''; monthCostInput.value = '';
+    custName.value = ''; custAddress.value = ''; custPhone.value = ''; custEmail.value = '';
+    populateRateSchedules();
+    updateCareFromRateSchedule();
+    rateScheduleOther.value = '';
+    meterNumber.value = ''; custNotes.value = '';
+    careValue = null; updateCareButtons();
+    proposalPreview.classList.remove('visible');
+    currentPeriods = computePeriods(currentUtility);
+    recalc();
+    pageTwoInitialized = false;
+    additionalEquipmentToggle.checked = false;
+    equipmentOptions.classList.remove('visible');
+    photovoltaicToggle.checked = false;
+    pvFields.classList.remove('visible');
+    pvOffset.value = '';
+    pvQuantity.value = '';
+    pvInitialRate.value = '';
+    pvAnnualKwh.value = '';
+    comparisonPvSide.style.display = 'none';
+    comparisonStrip.classList.remove('has-pv');
+    projectionTable.classList.remove('has-pv');
+    projectionTable.classList.remove('show-all');
+    showAllYearsBtn.setAttribute('aria-expanded', 'false');
+    goToPageOne();
+  });
+
+  chartToggle.addEventListener('click', () => {
+    chartPanel.classList.toggle('hidden');
+    const hidden = chartPanel.classList.contains('hidden');
+    chartToggle.setAttribute('aria-pressed', String(!hidden));
+    chartToggle.textContent = hidden ? 'Show chart' : 'Hide chart';
+  });
+
+  currentPeriods = computePeriods(currentUtility);
+  buildLedger();
+  syncRateCalculatorDefaults(true);
+</script>
+</body>
+</html>
